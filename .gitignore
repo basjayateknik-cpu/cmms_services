@@ -1,0 +1,6 @@
+*.db
+cmms.db
+static/uploads/*
+.db-shm
+.db-wal
+.env

@@ -1,0 +1,1 @@
+[[0, "id", "INTEGER", 1, null, 1], [1, "name", "VARCHAR(100)", 1, null, 0], [2, "code", "VARCHAR(50)", 1, null, 0], [3, "make", "VARCHAR(50)", 0, null, 0], [4, "model_num", "VARCHAR(50)", 0, null, 0], [5, "unit_cost", "FLOAT", 0, null, 0], [6, "site_id", "INTEGER", 0, null, 0]]

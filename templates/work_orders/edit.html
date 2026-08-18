@@ -1,0 +1,1687 @@
+{% extends "base.html" %}
+
+{% block toolbar_left %}
+<a href="{{ url_for('work_orders.index') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i>
+    Back</a>
+<h5 class="mb-0 ms-3 d-flex align-items-center">
+    {% if wo %}Edit Work Order: {{ wo.code }}{% else %}New Work Order{% endif %}
+</h5>
+{% endblock %}
+
+{% block toolbar_right %}
+{% if wo and wo.current_status %}
+{% if wo.current_status.control_type == 'Draft' %}
+<span class="badge bg-secondary fs-6 me-3"><i class="bi bi-pencil"></i> {{ wo.current_status.name }}</span>
+{% elif wo.current_status.control_type == 'Pending' %}
+<span class="badge bg-warning text-dark fs-6 me-3"><i class="bi bi-hourglass-split"></i> {{ wo.current_status.name
+    }}</span>
+{% elif wo.current_status.control_type == 'Active' %}
+<span class="badge bg-primary fs-6 me-3"><i class="bi bi-play-circle"></i> {{ wo.current_status.name }}</span>
+{% elif wo.current_status.control_type == 'Closed' %}
+<span class="badge bg-dark fs-6 me-3"><i class="bi bi-check-circle"></i> {{ wo.current_status.name }}</span>
+{% else %}
+<span class="badge bg-light text-dark border fs-6 me-3">{{ wo.current_status.name }}</span>
+{% endif %}
+
+<!-- Workflow Action Buttons -->
+{% if current_user.role in ['Admin', 'Supervisor'] and wo.current_status.name == 'Solved' %}
+<button type="button" class="btn btn-sm btn-success me-2" onclick="submitStatus('complete')"><i
+        class="bi bi-check-all"></i> Approve & Complete</button>
+<button type="button" class="btn btn-sm btn-warning me-2"
+    onclick="openReasonModal('incomplete', 'Mark Incomplete', 'Reason for rejecting technical work:')"><i
+        class="bi bi-x-circle"></i> Mark Incomplete</button>
+{% endif %}
+
+{% if wo.current_status.name in ['Draft', 'Assigned', 'Confirmed', 'Incompleted'] %}
+<button type="button" class="btn btn-sm btn-primary shadow-sm me-2" onclick="openStartModal()"><i
+        class="bi bi-play-fill"></i> Start Progress</button>
+{% if current_user.role != 'Technician' %}
+<button type="button" class="btn btn-sm btn-danger shadow-sm me-2" onclick="submitStatus('cancel_to_draft')"><i
+        class="bi bi-arrow-counterclockwise"></i> Batalin WO (Edit)</button>
+{% endif %}
+{% elif wo.current_status.name == 'In Progress' %}
+<button type="button" class="btn btn-sm btn-warning text-dark shadow-sm me-2"
+    onclick="openReasonModal('hold', 'Hold Work Order', 'Reason for putting work on hold:')"><i
+        class="bi bi-pause-fill"></i> Hold</button>
+<button type="button" class="btn btn-sm btn-info text-white shadow-sm me-2" onclick="submitStatus('solve')"><i
+        class="bi bi-check-lg"></i> Mark Solved</button>
+{% elif wo.current_status.name == 'Hold' %}
+<button type="button" class="btn btn-sm btn-primary shadow-sm me-2" onclick="submitStatus('resume')"><i
+        class="bi bi-play-fill"></i> Resume Work</button>
+{% endif %}
+
+{% endif %}
+{% if wo %}
+<a href="{{ url_for('work_orders.export_pdf', id=wo.id) }}" class="btn btn-sm btn-danger shadow-sm me-2"><i
+        class="bi bi-file-earmark-pdf"></i> Export PDF</a>
+{% endif %}
+{% if current_user.role != 'Technician' and (not wo or (wo and wo.current_status and wo.current_status.name == 'Draft'))
+%}
+<button type="submit" form="woForm" class="btn btn-sm btn-secondary shadow-sm"><i class="bi bi-save"></i> Save
+    Notes</button>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<style>
+/* Premium Edit View Styling */
+.settings-pane-card { background: #ffffff; border-radius: 18px; box-shadow: 0 10px 30px -5px rgba(0,0,0,0.08); border: none; overflow: hidden; }
+.nav-tabs .nav-link { border: none; color: #64748b; font-weight: 600; padding: 1rem 1.25rem; border-bottom: 2px solid transparent; transition: all 0.2s; }
+.nav-tabs .nav-link:hover { color: #4f46e5; border-bottom-color: rgba(79, 70, 229, 0.3); }
+.nav-tabs .nav-link.active { color: #4f46e5; border-bottom-color: #4f46e5; background: transparent; }
+.form-label.text-muted { font-size: 0.8rem; letter-spacing: 0.02em; text-transform: uppercase; color: #94a3b8 !important; }
+.form-control, .form-select { border-radius: 10px; border: 1px solid #e2e8f0; padding: 0.6rem 1rem; box-shadow: inset 0 1px 2px rgba(0,0,0,0.02); }
+.form-control:focus, .form-select:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+</style>
+
+<form method="POST" action="" id="woForm" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/></form>
+<div class="row g-4">
+
+    <!-- Left Column: Asset Info -->
+    <div class="col-md-4">
+        <div class="settings-pane-card h-100">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">Asset Information</h6>
+            </div>
+            <div class="card-body text-center">
+                <fieldset {% if current_user.role=='Technician' or (wo and wo.current_status and wo.current_status.name
+                    !='Draft' ) %}disabled{% endif %}>
+                    {% if wo and wo.asset %}
+                    <div class="bg-light rounded p-4 mb-3 d-inline-block">
+                        <i class="bi bi-box fs-1 text-muted"></i>
+                    </div>
+                    <h5 class="fw-bold">{{ wo.asset.name }}</h5>
+                    <p class="text-muted mb-1">Code: {{ wo.asset.code }}</p>
+                    <p class="text-muted mb-3"><i class="bi bi-geo-alt"></i> {{ wo.asset.site.name if wo.asset.site else
+                        'Unknown Location' }}</p>
+
+                    <div class="border-top pt-3 mt-3">
+                        <h6 class="small text-muted text-uppercase fw-bold mb-2">Asset QR</h6>
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data={{ wo.asset.code }}"
+                            class="img-fluid border p-1 rounded bg-white shadow-sm" alt="QR Code">
+                    </div>
+
+                    {% if not wo or not wo.current_status or wo.current_status.name == 'Draft' %}
+                    <div class="mt-4 text-start">
+                        <label class="form-label text-muted small fw-bold">Change Asset</label>
+                        <select name="asset_id" class="form-select border-0 bg-transparent text-secondary"
+                            id="asset_select" required>
+                            <option value="">-- Select Asset --</option>
+                            {% for asset in assets %}
+                            <option value="{{ asset.id }}" {% if wo.asset_id==asset.id %}selected{% endif %}>{{
+                                asset.name }} ({{ asset.code }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-start">
+                        <label class="form-label text-muted small fw-bold">Select Asset *</label>
+                        <select class="form-select" name="asset_id" form="woForm" required>
+                            <option value="">-- Select Asset --</option>
+                            {% for asset in assets %}
+                            <option value="{{ asset.id }}">{{ asset.name }} ({{ asset.code }})</option>
+                            {% endfor %}
+                        </select>
+                        <p class="text-muted small mt-2">Asset details will securely load here once saved.</p>
+                    </div>
+                    {% endif %}
+                </fieldset>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Form Tabs -->
+    <div class="col-md-8">
+        <div class="settings-pane-card mb-4">
+            <div class="card-header bg-transparent p-0 border-bottom-0">
+                <ul class="nav nav-tabs px-3 pt-3" id="woTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active text-dark fw-semibold" id="general-tab" data-bs-toggle="tab"
+                            data-bs-target="#general" type="button" role="tab"><i class="bi bi-card-text me-1"></i>
+                            General</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link text-dark fw-semibold" id="procedures-tab" data-bs-toggle="tab"
+                            data-bs-target="#procedures_panel" type="button" role="tab">
+                            <i class="bi bi-list-task me-1"></i> Task Procedures
+                            {% if wo and wo.procedures.count() > 0 %}
+                            <span class="badge rounded-pill bg-primary ms-1" style="font-size: 0.65em;">{{
+                                wo.procedures.count() }}</span>
+                            {% endif %}
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link text-dark fw-semibold" id="checklist-tab" data-bs-toggle="tab"
+                            data-bs-target="#checklist_panel" type="button" role="tab">
+                            <i class="bi bi-ui-checks me-1"></i> Checklist Data
+                            {% if wo and wo.checklist_parameters.count() > 0 %}
+                            <span class="badge rounded-pill bg-warning text-dark ms-1" style="font-size: 0.65em;">{{
+                                wo.checklist_parameters.count() }}</span>
+                            {% endif %}
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link text-dark fw-semibold" id="completion-tab" data-bs-toggle="tab"
+                            data-bs-target="#completion" type="button" role="tab"><i
+                                class="bi bi-check2-circle me-1"></i> Completion</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link text-dark fw-semibold" id="parts-tab" data-bs-toggle="tab"
+                            data-bs-target="#parts" type="button" role="tab"><i class="bi bi-tools me-1"></i>
+                            Parts</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link text-dark fw-semibold" id="files-tab" data-bs-toggle="tab"
+                            data-bs-target="#files" type="button" role="tab"><i class="bi bi-paperclip me-1"></i>
+                            Files</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link text-dark fw-semibold" id="log-tab" data-bs-toggle="tab"
+                            data-bs-target="#log" type="button" role="tab"><i class="bi bi-journal-text me-1"></i> Work
+                            Log</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link text-dark fw-semibold" id="signature-tab" data-bs-toggle="tab"
+                            data-bs-target="#signature" type="button" role="tab"><i class="bi bi-pen me-1"></i>
+                            Signature</button>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="card-body p-4">
+                <div class="tab-content" id="woTabsContent">
+
+                    <!-- General Tab -->
+                    <div class="tab-pane fade show active" id="general" role="tabpanel">
+                        <fieldset {% if current_user.role=='Technician' or (wo and wo.current_status and
+                            wo.current_status.name !='Draft' ) %}disabled{% endif %}>
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold">WO Code</label>
+                                    <input type="text" class="form-control bg-light" name="code" form="woForm"
+                                        value="{{ wo.code if wo else 'Auto-Generated on Save' }}" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold">Project Code</label>
+                                    {% set locked_project_code = current_user.site.project_code if current_user.site else None %}
+                                    <select class="form-select" name="project_code" form="woForm"
+                                        id="project_code_select" {% if locked_project_code %}disabled{% endif %}>
+                                        <option value="">-- None --</option>
+                                        {% for proj in project_codes %}
+                                        <option value="{{ proj.code }}" {% if wo and wo.project_code==proj.code
+                                            %}selected{% elif locked_project_code == proj.code %}selected{% endif %}>{{ proj.code }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    {% if locked_project_code %}
+                                    <input type="hidden" name="project_code" form="woForm" value="{{ locked_project_code }}">
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label text-muted small fw-bold">Description *</label>
+                                <textarea class="form-control" name="description" form="woForm" rows="2"
+                                    required>{{ wo.description if wo else '' }}</textarea>
+                            </div>
+
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold text-primary"><i
+                                            class="bi bi-ui-checks"></i> Standard Tasklist</label>
+                                    <select class="form-select border-primary" name="tasklist_id" form="woForm"
+                                        onchange="{% if wo.procedures.count() > 0 %}if(this.value && this.value != '{{ wo.tasklist_id }}') alert('Warning: Changing this will clear and overwrite any existing tasklist progress on save.');{% endif %} previewTasklist(this.value);">
+                                        <option value="">-- No Tasklist --</option>
+                                        {% set grouped_tasklists = tasklists|groupby('project_code_group') %}
+                                        {% for group in grouped_tasklists %}
+                                            <optgroup label="{{ group.grouper if group.grouper else 'General (No Project Code)' }}">
+                                                {% for tl in group.list %}
+                                                <option value="{{ tl.id }}" {% if wo and wo.tasklist_id==tl.id %}selected{% endif %}>{{ tl.name }}</option>
+                                                {% endfor %}
+                                            </optgroup>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text mt-1 text-primary" style="font-size: 0.75rem;">Selecting a
+                                        tasklist will auto-generate its procedures.</div>
+                                    <div id="tasklist_preview" class="mt-2 text-muted small bg-light p-2 rounded"
+                                        style="display:none; max-height: 150px; overflow-y:auto;"></div>
+
+                                    <label class="form-label text-muted small fw-bold text-warning mt-3"><i
+                                            class="bi bi-list-check"></i> Standard Checklist</label>
+                                    <select class="form-select border-warning" name="checklist_id" form="woForm"
+                                        onchange="{% if wo.checklist_parameters.count() > 0 %}if(this.value && this.value != '{{ wo.checklist_id }}') alert('Warning: Changing this will clear and overwrite any existing checklist data on save.');{% endif %} previewChecklist(this.value);">
+                                        <option value="">-- No Checklist --</option>
+                                        {% set grouped_checklists = checklists|groupby('project_code_group') %}
+                                        {% for group in grouped_checklists %}
+                                            <optgroup label="{{ group.grouper if group.grouper else 'General (No Project Code)' }}">
+                                                {% for cl in group.list %}
+                                                <option value="{{ cl.id }}" {% if wo and wo.checklist_id==cl.id %}selected{% endif %}>{{ cl.name }}</option>
+                                                {% endfor %}
+                                            </optgroup>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text mt-1 text-warning" style="font-size: 0.75rem;">Selecting a
+                                        checklist will auto-generate data parameters to collect.</div>
+                                    <div id="checklist_preview" class="mt-2 text-muted small bg-light p-2 rounded"
+                                        style="display:none; max-height: 150px; overflow-y:auto;"></div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold">Custom Work Instructions /
+                                        Notes</label>
+                                    <textarea class="form-control" name="work_instructions" form="woForm" rows="2"
+                                        placeholder="Additional detailed steps or manuals...">{{ wo.work_instructions if wo else '' }}</textarea>
+                                </div>
+                            </div>
+
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold">Maintenance Type</label>
+                                    <select class="form-select" name="maintenance_type" form="woForm">
+                                        <option value="Preventive" {% if wo and wo.maintenance_type=='Preventive'
+                                            %}selected{% endif %}>Preventive</option>
+                                        <option value="Corrective" {% if not wo or wo.maintenance_type=='Corrective'
+                                            %}selected{% endif %}>Corrective</option>
+                                        <option value="Handling" {% if wo and wo.maintenance_type=='Handling'
+                                            %}selected{% endif %}>Handling</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold">Priority</label>
+                                    <select class="form-select" name="priority" form="woForm">
+                                        <option value="Highest" {% if wo and wo.priority=='Highest' %}selected{% endif
+                                            %}>Highest</option>
+                                        <option value="High" {% if wo and wo.priority=='High' %}selected{% endif %}>High
+                                        </option>
+                                        <option value="Medium" {% if not wo or wo.priority=='Medium' %}selected{% endif
+                                            %}>Medium</option>
+                                        <option value="Low" {% if wo and wo.priority=='Low' %}selected{% endif %}>Low
+                                        </option>
+                                        <option value="None" {% if wo and wo.priority=='None' %}selected{% endif %}>None
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-2">
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold"><i class="bi bi-people me-1"></i> Assigned Team</label>
+                                    <select class="form-select mb-2" name="team_id" id="team_select" form="woForm" onchange="fetchTeamMembers(this.value)">
+                                        <option value="">-- No Team --</option>
+                                        {% for team in teams %}
+                                            <option value="{{ team.id }}" {% if wo and wo.team_id == team.id %}selected{% endif %}>{{ team.name }}</option>
+                                        {% endfor %}
+                                    </select>
+
+                                    <label class="form-label text-muted small fw-bold">Assignees</label>
+                                    <div id="assigneesContainer">
+                                        {% if wo.assignees %}
+                                        {% for assignee in wo.assignees %}
+                                        <div class="input-group mb-2 assignee-row">
+                                            <select class="form-select assignee-select border-primary"
+                                                name="assigned_to" form="woForm">
+                                                <option value="">-- Unassigned --</option>
+                                                {% for user in users %}
+                                                <option value="{{ user.id }}" {% if assignee.id==user.id %}selected{%
+                                                    endif %}>{{ user.name }} ({{ user.role }})</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button class="btn btn-outline-danger remove-assignee-btn" type="button"
+                                                onclick="this.closest('.assignee-row').remove()"><i
+                                                    class="bi bi-trash"></i></button>
+                                        </div>
+                                        {% endfor %}
+                                        {% endif %}
+
+                                        {% if not wo.assignees %}
+                                        <div class="input-group mb-2 assignee-row">
+                                            <select class="form-select assignee-select border-primary"
+                                                name="assigned_to" form="woForm">
+                                                <option value="">-- Unassigned --</option>
+                                                {% for user in users %}
+                                                <option value="{{ user.id }}">{{ user.name }} ({{ user.role }})</option>
+                                                {% endfor %}
+                                            </select>
+                                            <button class="btn btn-outline-danger remove-assignee-btn" type="button"
+                                                onclick="this.closest('.assignee-row').remove()"><i
+                                                    class="bi bi-trash"></i></button>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary mt-1"
+                                        onclick="addAssigneeRow()"><i class="bi bi-plus-lg"></i> Add Assignee</button>
+                                </div>
+                            </div>
+                        </fieldset>
+                    </div>
+
+                    <!-- Procedures Tab -->
+                    <div class="tab-pane fade" id="procedures_panel" role="tabpanel">
+                        {% if wo %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0">Task Procedures</h6>
+                            <div>
+                                <span class="badge bg-primary rounded-pill px-3">{{
+                                    wo.procedures.filter_by(is_completed=True).count() }} / {{ wo.procedures.count() }}
+                                    Completed</span>
+                                {% if current_user.role != 'Technician' and (not wo or (wo.current_status and
+                                wo.current_status.name == 'Draft')) %}
+                                <button type="button"
+                                    class="btn btn-sm btn-outline-primary ms-2 rounded-pill shadow-sm bg-white"
+                                    data-bs-toggle="modal" data-bs-target="#addProcedureModal"><i
+                                        class="bi bi-plus-lg text-primary fw-bold"></i> Add Task</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if wo and wo.procedures.count() > 0 %}
+                        {% for proc in wo.procedures %}
+                            <div class="d-flex align-items-center justify-content-between px-0 py-2 border-bottom {% if proc.status == 'Failed' %}border-start border-5 border-warning ps-2{% elif proc.is_completed %}border-start border-5 border-success ps-2{% else %}border-start border-5 border-transparent ps-2{% endif %}"
+                                style="transition: all 0.2s ease;">
+                                <div class="d-flex align-items-start text-start overflow-hidden w-100">
+                                    {% if wo and wo.current_status and wo.current_status.control_type == 'Active' %}
+                                    <form
+                                        action="{{ url_for('work_orders.complete_procedure', id=wo.id, proc_id=proc.id) }}"
+                                        method="POST" class="m-0 p-0 me-3" {% if proc.requires_attachment and not
+                                        proc.is_completed %}enctype="multipart/form-data" {% endif %}>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        {% if proc.is_completed %}
+                                        <input type="hidden" name="action" value="uncomplete">
+                                        {% if proc.status == 'Failed' %}
+                                        <button type="submit"
+                                            class="btn btn-lg p-0 m-0 border-0 bg-transparent text-warning"
+                                            title="Click to Un-Skip (Reset)">
+                                            <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+                                        </button>
+                                        {% else %}
+                                        <button type="submit"
+                                            class="btn btn-lg p-0 m-0 border-0 bg-transparent text-success"
+                                            title="Click to Un-Complete">
+                                            <i class="bi bi-check-circle-fill fs-3"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% else %}
+                                        {% if proc.requires_attachment %}
+                                        <button type="button"
+                                            class="btn btn-lg p-0 m-0 border-0 bg-transparent text-primary"
+                                            onclick="openPhotoChoice('{{proc.id}}', 'file_proc')"
+                                            title="Attach Photo(s) to Complete">
+                                            <i class="bi bi-camera fs-3"></i>
+                                        </button>
+                                        <input type="file" multiple accept="image/*" capture="environment"
+                                            id="file_proc_cam_{{proc.id}}" name="proc_attachment" style="display:none;"
+                                            onchange="if(this.files.length) this.form.submit();">
+                                        <input type="file" multiple accept="image/*" id="file_proc_gal_{{proc.id}}"
+                                            name="proc_attachment" style="display:none;"
+                                            onchange="if(this.files.length) this.form.submit();">
+                                        {% else %}
+                                        <button type="submit"
+                                            class="btn btn-lg p-0 m-0 border-0 bg-transparent text-secondary opacity-25"
+                                            title="Click to Complete">
+                                            <i class="bi bi-circle fs-3"></i>
+                                        </button>
+                                        {% endif %}
+                                        {% endif %}
+                                    </form>
+                                    {% else %}
+                                    <div class="m-0 p-0 me-3 text-muted opacity-50">
+                                        {% if proc.status == 'Failed' %}
+                                        <i class="bi bi-exclamation-triangle-fill fs-3 text-warning"></i>
+                                        {% elif proc.is_completed %}
+                                        <i class="bi bi-check-circle-fill fs-3 text-success"></i>
+                                        {% else %}
+                                        <i class="bi bi-circle fs-3"></i>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                    <div class="flex-grow-1">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <span
+                                                    class="{% if proc.is_completed %}text-decoration-line-through text-muted{% else %}text-dark{% endif %} fw-semibold">{{
+                                                    proc.name }}</span>
+                                                {% if proc.requires_attachment and not proc.is_completed %}
+                                                <span class="badge bg-info text-dark ms-2" style="font-size:0.65rem;"><i
+                                                        class="bi bi-camera"></i> Photo Required</span>
+                                                {% endif %}
+                                                {% if proc.estimated_minutes > 0 %}
+                                                <span class="badge bg-light text-dark border ms-1"
+                                                    style="font-size:0.65rem;"><i class="bi bi-clock"></i> {{
+                                                    proc.estimated_minutes }} m</span>
+                                                {% endif %}
+                                            </div>
+                                            {% if not proc.is_completed and wo and wo.current_status and
+                                            wo.current_status.control_type == 'Active' %}
+                                            <button type="button" class="btn btn-sm btn-outline-warning ms-2"
+                                                data-bs-toggle="modal" data-bs-target="#skipProcModal{{ proc.id }}"
+                                                title="Skip/Fail Task">
+                                                <i class="bi bi-exclamation-octagon"></i> Skip/Fail
+                                            </button>
+                                            {% endif %}
+                                        </div>
+
+                                        {% if proc.is_completed %}
+                                        {% if proc.attachment_path %}
+                                        <div class="mt-1 d-flex flex-wrap gap-1 align-items-center">
+                                            {% for path in proc.attachment_path.split('|') %}
+                                            {% if path %}
+                                            <a href="{{ url_for('static', filename=path) }}" target="_blank"
+                                                class="badge bg-primary text-decoration-none"><i
+                                                    class="bi bi-image"></i> View Photo {{ loop.index }}</a>
+                                            {% endif %}
+                                            {% endfor %}
+                                            {% if wo and wo.current_status and wo.current_status.control_type ==
+                                            'Active' %}
+                                            <form
+                                                action="{{ url_for('work_orders.complete_procedure', id=wo.id, proc_id=proc.id) }}"
+                                                method="POST" enctype="multipart/form-data" class="d-inline m-0 p-0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <input type="hidden" name="action" value="append_photo">
+                                                <button type="button"
+                                                    class="badge bg-light text-primary border border-primary text-decoration-none ms-1 cursor-pointer"
+                                                    onclick="openPhotoChoice('{{proc.id}}', 'append_photo')"
+                                                    style="cursor: pointer;">
+                                                    <i class="bi bi-plus"></i> Tambah Foto
+                                                </button>
+                                                <input type="file" multiple accept="image/*" capture="environment"
+                                                    id="append_photo_cam_{{proc.id}}" name="proc_attachment"
+                                                    style="display:none;"
+                                                    onchange="if(this.files.length) this.form.submit();">
+                                                <input type="file" multiple accept="image/*"
+                                                    id="append_photo_gal_{{proc.id}}" name="proc_attachment"
+                                                    style="display:none;"
+                                                    onchange="if(this.files.length) this.form.submit();">
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                        {% if proc.status == 'Failed' %}
+                                        <div class="mt-2 p-2 bg-warning bg-opacity-10 rounded border border-warning"
+                                            style="font-size: 0.85rem;">
+                                            <span class="text-dark fw-bold"><i
+                                                    class="bi bi-exclamation-triangle-fill text-warning me-1"></i>
+                                                Skipped / Failed Reason:</span><br>
+                                            <span class="text-dark">{{ proc.notes }}</span>
+                                        </div>
+                                        <div class="mt-1"><small class="text-warning fw-bold"
+                                                style="font-size: 0.75rem;"><i class="bi bi-person-fill me-1"></i>
+                                                Skipped by {{ proc.completed_by.name }} at {{
+                                                proc.completed_at|to_jakarta('%H:%M %d/%m') if proc.completed_at else ''
+                                                }}</small></div>
+                                        {% else %}
+                                        <div class="mt-1"><small class="text-success fw-bold"
+                                                style="font-size: 0.75rem;"><i class="bi bi-person-check-fill me-1"></i>
+                                                By {{ proc.completed_by.name }} at {{ proc.completed_at|to_jakarta('%H:%M
+                                                %d/%m') if proc.completed_at else '' }}</small></div>
+                                        {% endif %}
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <!-- End of row content -->
+                                {% if current_user.role != 'Technician' and wo.current_status and wo.current_status.name
+                                == 'Draft' %}
+                                <div class="ms-3 d-flex align-items-center flex-shrink-0">
+                                    <button type="button" class="btn btn-sm text-primary shadow-none p-1 me-1"
+                                        title="Edit" data-bs-toggle="modal"
+                                        data-bs-target="#editProcModal{{ proc.id }}"><i
+                                            class="bi bi-pencil-square fs-5"></i></button>
+                                    <form
+                                        action="{{ url_for('work_orders.delete_wo_procedure', id=wo.id, proc_id=proc.id) }}"
+                                        method="POST" class="m-0 p-0"
+                                        onsubmit="return confirm('Hapus task ini secara permanen dari Work Order?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-sm text-danger shadow-none p-1"
+                                            title="Delete"><i class="bi bi-trash fs-5"></i></button>
+                                    </form>
+                                </div>
+                                <!-- Skip Task Modal -->
+                                <div class="modal fade" id="skipProcModal{{ proc.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content border-0 shadow-lg rounded-4">
+                                            <div class="modal-header bg-warning text-dark">
+                                                <h5 class="modal-title fw-bold">Skip / Fail Task</h5>
+                                                <button type="button" class="btn-close"
+                                                    data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form
+                                                action="{{ url_for('work_orders.complete_procedure', id=wo.id, proc_id=proc.id) }}"
+                                                method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <input type="hidden" name="action" value="fail">
+                                                <div class="modal-body text-start">
+                                                    <p class="text-dark">You are about to skip the task: <strong>{{
+                                                            proc.name }}</strong></p>
+                                                    <div class="mb-3">
+                                                        <label class="form-label text-dark fw-bold">Reason / Note
+                                                            *</label>
+                                                        <textarea class="form-control" name="notes" rows="3"
+                                                            placeholder="Why are you skipping this task? (e.g. camera broken, area locked)"
+                                                            required></textarea>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer bg-light border-0">
+                                                    <button type="submit"
+                                                        class="btn btn-warning fw-bold px-4 text-dark">Confirm
+                                                        Skip</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Edit Procedure Modal -->
+                                <div class="modal fade" id="editProcModal{{ proc.id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <div class="modal-content border-0 shadow-lg rounded-4">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title fw-bold">Edit Custom Task</h5>
+                                                <button type="button" class="btn-close"
+                                                    data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <form
+                                                action="{{ url_for('work_orders.edit_wo_procedure', id=wo.id, proc_id=proc.id) }}"
+                                                method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <div class="modal-body text-start">
+                                                    <div class="mb-3">
+                                                        <label class="form-label text-muted small fw-bold">Task Name /
+                                                            Step *</label>
+                                                        <input type="text" class="form-control" name="name"
+                                                            value="{{ proc.name }}" required>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-6 mb-3">
+                                                            <label class="form-label text-muted small fw-bold">Duration
+                                                                (Minutes)</label>
+                                                            <input type="number" step="1" min="0" class="form-control"
+                                                                name="estimated_minutes"
+                                                                value="{{ proc.estimated_minutes }}">
+                                                        </div>
+                                                        <div class="col-6 mb-3 d-flex align-items-end pb-2">
+                                                            <div class="form-check form-switch">
+                                                                <input class="form-check-input" type="checkbox"
+                                                                    role="switch" name="requires_attachment"
+                                                                    id="editReqAtt{{proc.id}}" {% if
+                                                                    proc.requires_attachment %}checked{% endif %}>
+                                                                <label
+                                                                    class="form-check-label text-muted small fw-bold ms-1"
+                                                                    for="editReqAtt{{proc.id}}">Require Photo</label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer bg-light border-0">
+                                                    <button type="submit" class="btn btn-primary fw-bold px-4">Update
+                                                        Task</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        {% if wo and current_user.role != 'Technician' %}
+                        <div class="alert alert-light text-center py-5 border shadow-sm rounded-4">
+                            <h5 class="fw-bold text-dark">No Procedures Found</h5>
+                            <p class="text-muted mb-0">Select a Standard Tasklist on the General tab to auto-generate,
+                                or click <strong>Add Task</strong> above to build custom tasks from scratch.</p>
+                        </div>
+                        {% elif wo %}
+                        <div class="alert alert-light text-center py-5 border shadow-sm rounded-4">
+                            <h5 class="fw-bold text-dark">No Procedures Found</h5>
+                            <p class="text-muted mb-0">Supervisor has not assigned any tasks yet.</p>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+
+                    <!-- Checklist Tab -->
+                    <div class="tab-pane fade" id="checklist_panel" role="tabpanel">
+                        {% if wo %}
+                        <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+                            <h6 class="fw-bold mb-0">Checklist Data Collection</h6>
+                            <div>
+                                <span class="badge bg-warning text-dark rounded-pill px-3">{{
+                                    wo.checklist_parameters.count() }} Parameters</span>
+                                
+                                {% if wo.current_status and wo.current_status.control_type == 'Active' %}
+                                <button type="submit" form="bulkChecklistForm" class="btn btn-sm btn-primary ms-2 rounded-pill shadow-sm"><i class="bi bi-save-fill"></i> Save All Checklist</button>
+                                {% endif %}
+
+                                {% if current_user.role != 'Technician' and wo.current_status and wo.current_status.name
+                                == 'Draft' %}
+                                <button type="button"
+                                    class="btn btn-sm btn-outline-warning text-dark ms-2 rounded-pill shadow-sm bg-white"
+                                    data-bs-toggle="modal" data-bs-target="#addChecklistModal"><i
+                                        class="bi bi-plus-lg text-dark fw-bold"></i> Add Parameter</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        {% if wo and wo.checklist_parameters.count() > 0 %}
+                        <form action="{{ url_for('work_orders.bulk_save_checklist', id=wo.id) }}" method="POST" id="bulkChecklistForm">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th style="width: 25%">Parameter</th>
+                                        <th style="width: 15%">Standard</th>
+                                        <th style="width: 25%">Value</th>
+                                        <th
+                                            style="width: {% if current_user.role != 'Technician' %}20%{% else %}35%{% endif %}">
+                                            Note (Optional)</th>
+                                        {% if current_user.role != 'Technician' %}
+                                        <th style="width: 15%" class="text-center">Action</th>
+                                        {% endif %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for chk in wo.checklist_parameters %}
+                                    <tr>
+                                        <td class="fw-bold text-dark">{{ chk.parameter }}</td>
+                                        <td><span class="badge bg-light text-dark border"><i
+                                                    class="bi bi-bullseye text-warning me-1"></i> {{ chk.standard
+                                                }}</span></td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    {% if chk.standard|string|trim|upper == 'OK' %}
+                                                    <div class="input-group-text bg-white border-warning">
+                                                        <input class="form-check-input mt-0 chk-ok-toggle" type="checkbox" data-target="val_{{ chk.id }}" {% if chk.value|string|trim|upper == 'OK' %}checked{% endif %} {% if current_user.role not in ['Technician', 'Supervisor' , 'Admin' ] or not (wo and wo.current_status and wo.current_status.control_type=='Active' ) %}disabled{% endif %} title="Check if OK">
+                                                    </div>
+                                                    {% endif %}
+                                                    <input type="text" name="value_{{ chk.id }}" id="val_{{ chk.id }}"
+                                                        class="form-control {% if chk.value %}is-valid{% else %}border-warning{% endif %} {% if chk.standard|string|trim|upper == 'OK' and chk.value|string|trim|upper == 'OK' %}bg-light{% endif %}"
+                                                        value="{{ chk.value or '' }}" placeholder="Enter value..."
+                                                        {% if current_user.role not in
+                                                        ['Technician', 'Supervisor' , 'Admin' ] or not (wo and
+                                                        wo.current_status and wo.current_status.control_type=='Active' )
+                                                        %}disabled{% elif chk.standard|string|trim|upper == 'OK' and chk.value|string|trim|upper == 'OK' %}readonly{% endif %}>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="input-group input-group-sm">
+                                                    <input type="text" name="note_{{ chk.id }}" class="form-control"
+                                                        value="{{ chk.note or '' }}" placeholder="Freetext note..." {%
+                                                        if not (wo and wo.current_status and
+                                                        wo.current_status.control_type=='Active' ) %}disabled{% endif
+                                                        %}>
+                                                    {% if wo and wo.current_status and wo.current_status.control_type ==
+                                                    'Active' %}
+                                                    <button class="btn btn-outline-primary" type="submit"
+                                                        title="Save All Changes"><i class="bi bi-check2"></i></button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        {% if current_user.role != 'Technician' and wo.current_status and
+                                        wo.current_status.name == 'Draft' %}
+                                        <td class="text-center">
+                                            <div class="d-inline-flex">
+                                                <button type="button"
+                                                    class="btn btn-sm text-primary shadow-none p-1 me-1" title="Edit"
+                                                    data-bs-toggle="modal" data-bs-target="#editChkModal{{ chk.id }}"><i
+                                                        class="bi bi-pencil-square fs-5"></i></button>
+                                                <form
+                                                    action="{{ url_for('work_orders.delete_wo_checklist', id=wo.id, chk_id=chk.id) }}"
+                                                    method="POST" class="m-0 p-0"
+                                                    onsubmit="return confirm('Hapus parameter ini secara permanen dari Work Order?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                    <button type="submit" class="btn btn-sm text-danger shadow-none p-1"
+                                                        title="Delete"><i class="bi bi-trash fs-5"></i></button>
+                                                </form>
+                                            </div>
+                                        </td>
+
+                                        <!-- Edit Checklist Modal -->
+                                        <div class="modal fade" id="editChkModal{{ chk.id }}" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content border-0 shadow-lg rounded-4">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title fw-bold">Edit Custom Parameter</h5>
+                                                        <button type="button" class="btn-close"
+                                                            data-bs-dismiss="modal"></button>
+                                                    </div>
+                                                    <form
+                                                        action="{{ url_for('work_orders.edit_wo_checklist', id=wo.id, chk_id=chk.id) }}"
+                                                        method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                        <div class="modal-body text-start">
+                                                            <div class="mb-3">
+                                                                <label
+                                                                    class="form-label text-muted small fw-bold">Parameter
+                                                                    Name (Unit check) *</label>
+                                                                <input type="text" class="form-control" name="parameter"
+                                                                    value="{{ chk.parameter }}" required>
+                                                            </div>
+                                                            <div class="mb-3">
+                                                                <label
+                                                                    class="form-label text-muted small fw-bold">Standard
+                                                                    Range / Expected Value *</label>
+                                                                <input type="text" class="form-control" name="standard"
+                                                                    value="{{ chk.standard }}" required>
+                                                            </div>
+                                                        </div>
+                                                        <div class="modal-footer bg-light border-0">
+                                                            <button type="submit"
+                                                                class="btn btn-warning fw-bold px-4 text-dark">Update
+                                                                Parameter</button>
+                                                        </div>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </form>
+                        {% else %}
+                        {% if wo and current_user.role != 'Technician' %}
+                        <div class="alert alert-light text-center py-5 border shadow-sm rounded-4">
+                            <h5 class="fw-bold text-dark">No Checklist Data Parameters Found</h5>
+                            <p class="text-muted mb-0">Select a Standard Checklist on the General tab to auto-generate,
+                                or click <strong>Add Parameter</strong> above to build custom metrics from scratch.</p>
+                        </div>
+                        {% elif wo %}
+                        <div class="alert alert-light text-center py-5 border shadow-sm rounded-4">
+                            <h5 class="fw-bold text-dark">No Checklist Data Found</h5>
+                            <p class="text-muted mb-0">Supervisor has not assigned any checklist parameter.</p>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+
+                    <!-- Completion Tab -->
+                    <div class="tab-pane fade" id="completion" role="tabpanel">
+                        <fieldset {% if current_user.role=='Technician' or (wo and wo.current_status and
+                            wo.current_status.name !='Draft' ) %}disabled{% endif %}>
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold">Suggested Start Date</label>
+                                    <input type="datetime-local" class="form-control" name="suggested_start_date"
+                                        form="woForm"
+                                        value="{{ wo.suggested_start_date|to_jakarta('%Y-%m-%dT%H:%M') if wo and wo.suggested_start_date else '' }}">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold">Suggested End Date</label>
+                                    <input type="datetime-local" class="form-control" name="suggested_completion_date"
+                                        form="woForm"
+                                        value="{{ wo.suggested_completion_date|to_jakarta('%Y-%m-%dT%H:%M') if wo and wo.suggested_completion_date else '' }}">
+                                </div>
+                            </div>
+
+                            <hr class="text-muted">
+
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold">Actual Start Date</label>
+                                    <input type="datetime-local" class="form-control bg-light" name="start_date"
+                                        form="woForm" id="start_date"
+                                        value="{{ wo.start_date|to_jakarta('%Y-%m-%dT%H:%M') if wo and wo.start_date else '' }}"
+                                        onchange="calculateHours()" readonly>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold">Actual End Date</label>
+                                    <input type="datetime-local" class="form-control bg-light" name="end_date"
+                                        form="woForm" id="end_date"
+                                        value="{{ wo.end_date|to_jakarta('%Y-%m-%dT%H:%M') if wo and wo.end_date else '' }}"
+                                        onchange="calculateHours()" readonly>
+                                </div>
+                            </div>
+
+                            <div class="row g-4 mb-4">
+                                <div class="col-md-6">
+                                    <label class="form-label text-muted small fw-bold">Calculated Hours</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control bg-light" id="estimated_hours"
+                                            value="{{ wo.estimated_hours if wo and wo.estimated_hours else '0' }}"
+                                            readonly>
+                                        <span class="input-group-text">hrs</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </fieldset>
+
+                    </div>
+
+                    <!-- Parts Tab -->
+                    <div class="tab-pane fade" id="parts" role="tabpanel">
+                        {% if wo %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <p class="text-muted small mb-0">Record parts used for this maintenance task.</p>
+                            {% if current_user.role != 'Technician' and (wo.current_status and wo.current_status.name
+                            not in ['Solved', 'Completed', 'Closed', 'Incompleted']) %}
+                            <button type="button" class="btn btn-sm btn-outline-primary fw-bold px-3 rounded-pill"
+                                data-bs-toggle="modal" data-bs-target="#addPartModal">
+                                <i class="bi bi-plus-lg"></i> Add Part
+                            </button>
+                            {% endif %}
+                        </div>
+
+                        <div class="table-responsive border rounded mb-4">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Part Code</th>
+                                        <th>Part Name</th>
+                                        <th>Qty Used</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for wp in wo.used_parts %}
+                                    <tr>
+                                        <td class="fw-bold">{{ wp.part.code }}</td>
+                                        <td>{{ wp.part.name }}</td>
+                                        <td>{{ wp.quantity_used }}</td>
+                                        <td class="text-end">
+                                            {% if current_user.role != 'Technician' and (wo.current_status and
+                                            wo.current_status.name not in ['Solved', 'Completed', 'Closed',
+                                            'Incompleted']) %}
+                                            <button type="button"
+                                                onclick="document.getElementById('remove-part-{{wp.part.id}}').submit();"
+                                                class="btn btn-sm text-danger border-0 bg-transparent p-0"><i
+                                                    class="bi bi-x-circle fs-5"></i></button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4 text-muted fst-italic">No parts added to
+                                            this work order yet.</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </form>
+                        {% else %}
+                        <div class="alert alert-warning text-center">
+                            Work Order data is not saved yet. Please save the Work Order first.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Files Tab -->
+                    <div class="tab-pane fade" id="files" role="tabpanel">
+                        {% if wo %}
+                        {% if wo.current_status and wo.current_status.name not in ['Solved', 'Completed', 'Closed',
+                        'Incompleted'] %}
+                        <div class="mb-4">
+                            <label class="form-label text-muted small fw-bold">Upload New Attachment</label>
+                            <div class="input-group">
+                                <input type="file" class="form-control" name="wo_attachment" form="woForm">
+                                <button class="btn btn-outline-primary" type="button"
+                                    onclick="document.getElementById('woForm').submit();"><i class="bi bi-upload"></i>
+                                    Upload</button>
+                            </div>
+                            <div class="form-text">Supported formats: JPG, PNG, PDF. Max 5MB.</div>
+                        </div>
+                        {% endif %}
+
+                        <h6 class="fw-bold mb-3">Attached Files</h6>
+                        <div class="row g-3">
+                            {% for attachment in wo.attachments %}
+                            <div class="col-md-6 col-lg-4">
+                                <div class="card shadow-sm border">
+                                    <div class="card-body p-2 d-flex align-items-center">
+                                        <div class="bg-light rounded p-2 me-2">
+                                            <i
+                                                class="bi bi-file-earmark-{% if attachment.file_name.endswith('.pdf') %}pdf text-danger{% elif attachment.file_name.endswith(('.jpg','.png','.jpeg')) %}image text-primary{% else %}text text-secondary{% endif %} fs-4"></i>
+                                        </div>
+                                        <div class="flex-grow-1 overflow-hidden">
+                                            <a href="{{ url_for('static', filename=attachment.file_path) }}"
+                                                target="_blank"
+                                                class="text-decoration-none fw-semibold text-truncate d-block"
+                                                style="max-width: 150px;" title="{{ attachment.file_name }}">{{
+                                                attachment.file_name }}</a>
+                                            <small class="text-muted d-block">{{
+                                                attachment.upload_date|to_jakarta('%Y-%m-%d') }}</small>
+                                        </div>
+                                        <button type="button"
+                                            onclick="if(confirm('Delete file?')) { document.getElementById('del-file-{{attachment.id}}').submit(); }"
+                                            class="btn btn-sm text-danger ms-2"><i class="bi bi-trash"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="col-12">
+                                <p class="text-muted fst-italic text-center py-3 border rounded bg-light">No files
+                                    attached yet.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info text-center">
+                            Please save the Work Order first before attaching files.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Work Log Tab -->
+                    <div class="tab-pane fade" id="log" role="tabpanel">
+                        {% if wo %}
+                        {% if wo.current_status and wo.current_status.name not in ['Solved', 'Completed', 'Closed',
+                        'Incompleted'] %}
+                        <div class="mb-4">
+                            <form action="{{ url_for('work_orders.add_log', id=wo.id) }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <div class="mb-2">
+                                    <textarea class="form-control" name="log_text" rows="3"
+                                        placeholder="Add a new update, note, or handover instruction..."
+                                        required></textarea>
+                                </div>
+                                <div class="d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-send me-1"></i>
+                                        Post Update</button>
+                                </div>
+                            </form>
+                        </div>
+                        {% endif %}
+
+                        <h6 class="fw-bold mb-3 border-bottom pb-2">Activity Timeline</h6>
+                        <div class="timeline position-relative ps-3" style="border-left: 2px solid #e2e8f0;">
+                            {% for log in wo.logs %}
+                            <div class="timeline-item mb-4 position-relative">
+                                <div class="position-absolute bg-primary rounded-circle"
+                                    style="width: 12px; height: 12px; left: -23px; top: 5px; border: 2px solid white;">
+                                </div>
+                                <div class="card shadow-sm border-0 bg-light">
+                                    <div class="card-body p-3">
+                                        <div
+                                            class="d-flex justify-content-between align-items-center mb-2 border-bottom pb-2">
+                                            <span class="fw-bold text-dark"><i
+                                                    class="bi bi-person-circle me-1 text-muted"></i> {{ log.user.name
+                                                }}</span>
+                                            <small class="text-muted"><i class="bi bi-clock me-1"></i> {{
+                                                log.created_at|to_jakarta('%d %b %Y, %H:%M') }}</small>
+                                        </div>
+                                        <p class="mb-0 text-dark" style="white-space: pre-wrap;">{{ log.log_text }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-4 text-muted fst-italic">
+                                No activity logs recorded yet. Be the first to add an update!
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-info text-center">
+                            Please save the Work Order first before logging activities.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Signature Tab -->
+                    <div class="tab-pane fade" id="signature" role="tabpanel">
+                        <div class="row g-4 mb-4">
+                            <!-- Customer Signature -->
+                            <div class="col-md-6">
+                                <div class="card shadow-sm border-0 bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title fw-bold">Customer / Pihak Pertama</h6>
+                                        <div class="mb-2">
+                                            <input type="text" class="form-control form-control-sm mb-2" name="customer_name" form="woForm" placeholder="Name" value="{{ wo.customer_name or '' }}">
+                                            <input type="text" class="form-control form-control-sm" name="customer_title" form="woForm" placeholder="Job Title" value="{{ wo.customer_title or '' }}">
+                                        </div>
+                                        <div class="border bg-white rounded mb-2" style="height: 150px; position: relative;">
+                                            {% if wo and wo.customer_signature %}
+                                            <img src="{{ wo.customer_signature }}" class="img-fluid" style="height: 150px; width: 100%; object-fit: contain;">
+                                            <input type="hidden" name="customer_signature" form="woForm" id="customer_signature_input" value="{{ wo.customer_signature }}">
+                                            {% else %}
+                                            <canvas id="customerSignaturePad" style="width: 100%; height: 100%; touch-action: none;"></canvas>
+                                            <input type="hidden" name="customer_signature" form="woForm" id="customer_signature_input">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary position-absolute bottom-0 end-0 m-1" onclick="if(customerPad) customerPad.clear();">Clear</button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Technician Signature -->
+                            <div class="col-md-6">
+                                <div class="card shadow-sm border-0 bg-light">
+                                    <div class="card-body">
+                                        <h6 class="card-title fw-bold">Technician / Pihak Kedua</h6>
+                                        <div class="mb-2">
+                                            <input type="text" class="form-control form-control-sm mb-2" value="{{ wo.assignees[0].name if wo.assignees else 'PT JAYA TEKNIK INDONESIA' }}" readonly>
+                                            <input type="text" class="form-control form-control-sm" value="{{ wo.assignees[0].role if wo.assignees else '' }}" readonly>
+                                        </div>
+                                        <div class="border bg-white rounded mb-2" style="height: 150px; position: relative;">
+                                            {% if wo and wo.technician_signature %}
+                                            <img src="{{ wo.technician_signature }}" class="img-fluid" style="height: 150px; width: 100%; object-fit: contain;">
+                                            <input type="hidden" name="technician_signature" form="woForm" id="technician_signature_input" value="{{ wo.technician_signature }}">
+                                            {% else %}
+                                            <canvas id="technicianSignaturePad" style="width: 100%; height: 100%; touch-action: none;"></canvas>
+                                            <input type="hidden" name="technician_signature" form="woForm" id="technician_signature_input">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary position-absolute bottom-0 end-0 m-1" onclick="if(technicianPad) technicianPad.clear();">Clear</button>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Extra Save Button for Convenience -->
+                        <div class="text-end mt-4 pt-3 border-top">
+                            <button type="submit" form="woForm" class="btn btn-primary px-4 shadow-sm"
+                                {% if wo and wo.current_status and wo.current_status.control_type == 'Closed' %}disabled{% endif %}>
+                                <i class="bi bi-save me-2"></i> Save Signatures & WO
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+<!-- Hidden forms for delete actions outside the main form -->
+{% if wo %}
+{% for wp in wo.used_parts %}
+<form id="remove-part-{{wp.part.id}}" action="{{ url_for('work_orders.remove_part', id=wo.id, part_id=wp.part.id) }}"
+    method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/></form>
+{% endfor %}
+
+{% for att in wo.attachments %}
+<form id="del-file-{{att.id}}" action="{{ url_for('work_orders.delete_attachment', id=wo.id, attachment_id=att.id) }}"
+    method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/></form>
+{% endfor %}
+{% endif %}
+
+{% if wo and current_user.role != 'Technician' and (wo.current_status and wo.current_status.name not in ['Solved', 'Completed', 'Closed', 'Incompleted']) %}
+<!-- Add Part Modal -->
+<div class="modal fade" id="addPartModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 form-glass">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold"><i class="bi bi-box text-primary me-2"></i>Add Part from Stock</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body pt-3">
+                <form action="{{ url_for('work_orders.add_part', id=wo.id) }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Select Part (Available at {{
+                            wo.asset.site.name }}) *</label>
+                        <select class="form-select" name="part_id" required>
+                            <option value="">-- Choose Part --</option>
+                            {% for stock in available_stock %}
+                            {% if stock.qty_on_hand > 0 %}
+                            <option value="{{ stock.part.id }}">{{ stock.part.code }} - {{ stock.part.name }} ({{
+                                stock.qty_on_hand }} in stock)</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        {% if not available_stock %}
+                        <div class="form-text text-danger fst-italic"><i class="bi bi-exclamation-triangle"></i> No
+                            local stock is currently mapped or available at this site.</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label text-muted small fw-bold">Quantity Used *</label>
+                        <input type="number" class="form-control" name="qty" min="0.5" step="0.5" value="1" required>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary fw-bold pt-2 pb-2"><i
+                                class="bi bi-plus-circle me-1"></i> Confirm & Deduct</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if wo and current_user.role != 'Technician' %}
+<!-- Add Procedure Modal -->
+<div class="modal fade" id="addProcedureModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Add Custom Task</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('work_orders.add_wo_procedure', id=wo.id) }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Task Name / Step *</label>
+                        <input type="text" class="form-control" name="name" required placeholder="Ex: Clean the filter">
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                            <label class="form-label text-muted small fw-bold">Duration (Minutes)</label>
+                            <input type="number" step="1" min="0" class="form-control" name="estimated_minutes"
+                                placeholder="0">
+                        </div>
+                        <div class="col-6 mb-3 d-flex align-items-end pb-2">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" name="requires_attachment"
+                                    id="addReqAtt">
+                                <label class="form-check-label text-muted small fw-bold ms-1" for="addReqAtt">Require
+                                    Photo</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="submit" class="btn btn-primary fw-bold px-4">Add Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Checklist Modal -->
+<div class="modal fade" id="addChecklistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold">Add Custom Parameter</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('work_orders.add_wo_checklist', id=wo.id) }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-body text-start">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Parameter Name (Unit check) *</label>
+                        <input type="text" class="form-control" name="parameter" required
+                            placeholder="Ex: Oil Pressure">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small fw-bold">Standard Range / Expected Value *</label>
+                        <input type="text" class="form-control" name="standard" required
+                            placeholder="Ex: 40-60 psi / OK">
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-0">
+                    <button type="submit" class="btn btn-warning fw-bold px-4 text-dark">Add Parameter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Photo Choice Modal -->
+<div class="modal fade" id="photoChoiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow-lg rounded-4 form-glass">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold text-center w-100">Pilih Sumber Foto</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center pt-3 pb-4">
+                <p class="text-muted small mb-3">Mau ambil foto dari mana?</p>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-primary py-3 fw-bold rounded-3" onclick="triggerPhotoInput('cam')">
+                        <i class="bi bi-camera-fill fs-4 d-block mb-1"></i> Kamera
+                    </button>
+                    <button type="button" class="btn btn-outline-success py-3 fw-bold rounded-3" onclick="triggerPhotoInput('gal')">
+                        <i class="bi bi-images fs-4 d-block mb-1"></i> Galeri
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css"
+    rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    const allAssets = {{ assets_json| safe }};
+    const allTasklists = {{ tasklists_json| safe }};
+    const allChecklists = {{ checklists_json| safe }};
+    const allUsers = {{ users_json| safe }};
+
+    // Shared global state for Photo Choice Modal
+    let currentPhotoProcId = null;
+    let currentPhotoPrefix = null;
+
+    function openPhotoChoice(procId, prefix) {
+        currentPhotoProcId = procId;
+        currentPhotoPrefix = prefix; // 'file_proc' or 'append_photo'
+        var photoModal = new bootstrap.Modal(document.getElementById('photoChoiceModal'));
+        photoModal.show();
+    }
+
+    function triggerPhotoInput(sourceType) {
+        // sourceType is 'cam' or 'gal'
+        if(currentPhotoProcId && currentPhotoPrefix) {
+            const inputId = `${currentPhotoPrefix}_${sourceType}_${currentPhotoProcId}`;
+            const inputElement = document.getElementById(inputId);
+            if(inputElement) {
+                // close modal
+                var modalEl = document.getElementById('photoChoiceModal');
+                var modalInstance = bootstrap.Modal.getInstance(modalEl);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+                
+                // wait for modal transition then trigger click
+                setTimeout(() => {
+                    inputElement.click();
+                }, 300);
+            }
+        }
+    }
+
+    $(document).ready(function () {
+        // Move all modals to body to prevent stacking context or overflow inherit layout issues (blinking)
+        $('.modal').appendTo('body');
+
+        $('#asset_select').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: '-- Select Asset --'
+        });
+
+        $('#asset_select').on('change', function() {
+            var selectedAssetId = $(this).val();
+            if (selectedAssetId) {
+                var selectedAsset = allAssets.find(a => a.id == selectedAssetId);
+                if (selectedAsset) {
+                    var newCode = selectedAsset.project_code || "";
+                    var $projSelect = $('#project_code_select');
+                    
+                    if ($projSelect.val() !== newCode) {
+                        if (newCode === "" || $projSelect.find("option[value='" + newCode + "']").length > 0) {
+                            $projSelect.val(newCode).trigger('change');
+                        }
+                    }
+                }
+            }
+        });
+
+        $('#project_code_select').on('change', function () {
+            var selectedCode = $(this).val();
+            var $assetSelect = $('#asset_select');
+            var currentVal = $assetSelect.val();
+
+            $assetSelect.empty();
+            $assetSelect.append(new Option('-- Select Asset --', ''));
+
+            allAssets.forEach(function (asset) {
+                if (!selectedCode || asset.project_code === selectedCode) {
+                    var optionText = asset.name + ' (' + asset.code + ')';
+                    $assetSelect.append(new Option(optionText, asset.id, false, false));
+                }
+            });
+
+            if ($assetSelect.find("option[value='" + currentVal + "']").length) {
+                $assetSelect.val(currentVal);
+            }
+
+            $assetSelect.trigger('change');
+            
+            // Filter Tasklists
+            var $tasklistSelect = $('select[name="tasklist_id"]');
+            var currentTlVal = $tasklistSelect.val();
+            $tasklistSelect.empty();
+            $tasklistSelect.append(new Option('-- No Tasklist --', ''));
+            allTasklists.forEach(function(tl) {
+                if (!selectedCode || !tl.project_code || tl.project_code === selectedCode) {
+                    $tasklistSelect.append(new Option(tl.name, tl.id, false, false));
+                }
+            });
+            if ($tasklistSelect.find("option[value='" + currentTlVal + "']").length) {
+                $tasklistSelect.val(currentTlVal);
+            } else {
+                $tasklistSelect.val('');
+            }
+            $tasklistSelect.trigger('change');
+            
+            // Filter Checklists
+            var $checklistSelect = $('select[name="checklist_id"]');
+            var currentClVal = $checklistSelect.val();
+            $checklistSelect.empty();
+            $checklistSelect.append(new Option('-- No Checklist --', ''));
+            allChecklists.forEach(function(cl) {
+                if (!selectedCode || !cl.project_code || cl.project_code === selectedCode) {
+                    $checklistSelect.append(new Option(cl.name, cl.id, false, false));
+                }
+            });
+            if ($checklistSelect.find("option[value='" + currentClVal + "']").length) {
+                $checklistSelect.val(currentClVal);
+            } else {
+                $checklistSelect.val('');
+            }
+            $checklistSelect.trigger('change');
+            
+            // Filter Assignees
+            $('.assignee-select').each(function() {
+                var currentVal = $(this).val();
+                $(this).empty();
+                $(this).append(new Option('-- Unassigned --', ''));
+                var $select = $(this);
+                allUsers.forEach(function(user) {
+                    if (!selectedCode || !user.project_code || user.project_code === selectedCode) {
+                        $select.append(new Option(user.name + ' (' + user.role + ')', user.id, false, false));
+                    }
+                });
+                if ($select.find("option[value='" + currentVal + "']").length) {
+                    $select.val(currentVal);
+                } else {
+                    $select.val('');
+                }
+            });
+            
+        });
+        
+        // Trigger initial filtering based on selected project code
+        $('#project_code_select').trigger('change');
+    });
+
+    function addAssigneeRow(preSelectedId = null) {
+        var container = document.getElementById('assigneesContainer');
+        
+        // Prevent Adding duplicate rows for the same user if preSelectedId is given
+        if (preSelectedId) {
+            let exists = false;
+            container.querySelectorAll('.assignee-select').forEach(sel => {
+                if (sel.value == preSelectedId) exists = true;
+            });
+            if (exists) return;
+        }
+
+        // If the first row is empty/unassigned, use it instead of adding a new one
+        let firstRowSelect = container.querySelector('.assignee-select');
+        if (preSelectedId && firstRowSelect && !firstRowSelect.value) {
+            firstRowSelect.value = preSelectedId;
+            return;
+        }
+
+        var selectedCode = $('#project_code_select').val();
+        var optionsHtml = '<option value="">-- Unassigned --</option>';
+        allUsers.forEach(function(user) {
+            if (!selectedCode || !user.project_code || user.project_code === selectedCode) {
+                optionsHtml += '<option value="' + user.id + '">' + user.name + ' (' + user.role + ')</option>';
+            }
+        });
+
+        var html = `<div class="input-group mb-2 assignee-row">
+                        <select class="form-select assignee-select" name="assigned_to" form="woForm">
+                            ${optionsHtml}
+                        </select>
+                        <button class="btn btn-outline-danger remove-assignee-btn" type="button" onclick="this.closest('.assignee-row').remove()"><i class="bi bi-trash"></i></button>
+                    </div>`;
+        container.insertAdjacentHTML('beforeend', html);
+        
+        if (preSelectedId) {
+            let rows = container.querySelectorAll('.assignee-row');
+            let lastRowSelect = rows[rows.length - 1].querySelector('.assignee-select');
+            lastRowSelect.value = preSelectedId;
+        }
+    }
+
+    function fetchTeamMembers(id) {
+        if (!id) return;
+        let apiUrl = "{{ url_for('work_orders.get_team_members_api', id=0) }}".replace('0', id);
+        fetch(apiUrl)
+            .then(res => res.json())
+            .then(data => {
+                data.forEach(user => {
+                    addAssigneeRow(user.id);
+                });
+            });
+    }
+</script>
+<script>
+    function calculateHours() {
+        var start = document.getElementById('start_date').value;
+        var end = document.getElementById('end_date').value;
+        if (start && end) {
+            var diff = new Date(end) - new Date(start);
+            if (diff > 0) {
+                var hours = diff / 1000 / 60 / 60;
+                document.getElementById('estimated_hours').value = hours.toFixed(2);
+            } else {
+                document.getElementById('estimated_hours').value = '0';
+            }
+        }
+    }
+
+    function submitStatus(action) {
+        document.getElementById('hiddenActionValue').value = action;
+        document.getElementById('hiddenStatusForm').submit();
+    }
+
+    function openReasonModal(action, title, label) {
+        document.getElementById('statusActionValue').value = action;
+        document.getElementById('statusReasonTitle').innerText = title;
+        document.getElementById('statusReasonLabel').innerText = label;
+        var myModal = new bootstrap.Modal(document.getElementById('statusReasonModal'));
+        myModal.show();
+    }
+</script>
+
+<!-- Status Update Forms & Modals -->
+<form action="{{ url_for('work_orders.change_status', id=wo.id) if wo else '#' }}" method="POST" id="hiddenStatusForm"
+    style="display:none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+    <input type="hidden" name="action" id="hiddenActionValue">
+</form>
+
+<!-- Modal: Reason for Hold / Incomplete -->
+<div class="modal fade" id="statusReasonModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('work_orders.change_status', id=wo.id) if wo else '#' }}" method="POST"
+                id="statusReasonForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-header">
+                    <h5 class="modal-title" id="statusReasonTitle">Reason</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="action" id="statusActionValue">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" id="statusReasonLabel">Please provide a reason:</label>
+                        <textarea class="form-control" name="reason" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Start Confirmation -->
+<div class="modal fade" id="startConfirmModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title"><i class="bi bi-play-circle me-2"></i>Start Work Order?</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center p-4">
+                <div class="fs-1 text-primary mb-3"><i class="bi bi-tools"></i></div>
+                <h4>Ready to begin?</h4>
+                <p class="text-muted">Once you start, the Work Order state will change to <strong>In Progress</strong>
+                    and your active time will be recorded.</p>
+            </div>
+            <div class="modal-footer justify-content-center bg-light border-0">
+                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Later</button>
+                <button type="button" class="btn btn-primary px-4 fw-bold shadow-sm"
+                    onclick="submitStatus('start')">Yes, Start Now</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openStartModal() {
+        var startModal = new bootstrap.Modal(document.getElementById('startConfirmModal'));
+        startModal.show();
+    }
+
+    // Auto-popup for Technicians if Assigned
+    {% if wo and wo.current_status and wo.current_status.name in ['Assigned', 'Confirmed'] and current_user.role == 'Technician' %}
+    document.addEventListener("DOMContentLoaded", function () {
+        openStartModal();
+    });
+    {% endif %}
+</script>
+<script>
+    function previewTasklist(id) {
+        const previewDiv = document.getElementById('tasklist_preview');
+        if (!id) {
+            previewDiv.style.display = 'none';
+            return;
+        }
+        fetch(`/work-orders/api/tasklist/${id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.length === 0) {
+                    previewDiv.innerHTML = '<i>No tasks in this template</i>';
+                    previewDiv.style.display = 'block';
+                    return;
+                }
+                let html = '<ul class="mb-0 ps-3">';
+                data.forEach(item => {
+                    html += `<li>${item.name} (${item.estimated_minutes} min)</li>`;
+                });
+                html += '</ul>';
+                previewDiv.innerHTML = html;
+                previewDiv.style.display = 'block';
+            });
+    }
+
+    function previewChecklist(id) {
+        const previewDiv = document.getElementById('checklist_preview');
+        if (!id) {
+            previewDiv.style.display = 'none';
+            return;
+        }
+        fetch(`/work-orders/api/checklist/${id}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.length === 0) {
+                    previewDiv.innerHTML = '<i>No parameters in this template</i>';
+                    previewDiv.style.display = 'block';
+                    return;
+                }
+                let html = '<ul class="mb-0 ps-3">';
+                data.forEach(item => {
+                    html += `<li>${item.parameter} &rarr; ${item.standard}</li>`;
+                });
+                html += '</ul>';
+                previewDiv.innerHTML = html;
+                previewDiv.style.display = 'block';
+            });
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<script>
+    var customerPad, technicianPad;
+    document.addEventListener("DOMContentLoaded", function () {
+        var cCanvas = document.getElementById('customerSignaturePad');
+        if (cCanvas) {
+            customerPad = new SignaturePad(cCanvas);
+            function resizeCanvas() {
+                var ratio =  Math.max(window.devicePixelRatio || 1, 1);
+                cCanvas.width = cCanvas.offsetWidth * ratio;
+                cCanvas.height = cCanvas.offsetHeight * ratio;
+                cCanvas.getContext("2d").scale(ratio, ratio);
+                customerPad.clear();
+            }
+            window.addEventListener("resize", resizeCanvas);
+            resizeCanvas();
+        }
+
+        var tCanvas = document.getElementById('technicianSignaturePad');
+        if (tCanvas) {
+            technicianPad = new SignaturePad(tCanvas);
+            function resizeCanvasT() {
+                var ratio =  Math.max(window.devicePixelRatio || 1, 1);
+                tCanvas.width = tCanvas.offsetWidth * ratio;
+                tCanvas.height = tCanvas.offsetHeight * ratio;
+                tCanvas.getContext("2d").scale(ratio, ratio);
+                technicianPad.clear();
+            }
+            window.addEventListener("resize", resizeCanvasT);
+            resizeCanvasT();
+        }
+        
+        // Let signatures render correctly if tab is switched
+        var triggerTabList = [].slice.call(document.querySelectorAll('#woTabs button'))
+        triggerTabList.forEach(function (triggerEl) {
+            triggerEl.addEventListener('shown.bs.tab', function (event) {
+                if (event.target.id === 'signature-tab') {
+                    if (customerPad) window.dispatchEvent(new Event('resize'));
+                    if (technicianPad) window.dispatchEvent(new Event('resize'));
+                }
+            })
+        });
+    });
+
+    document.getElementById('woForm').addEventListener('submit', function() {
+        if (customerPad && !customerPad.isEmpty()) {
+            document.getElementById('customer_signature_input').value = customerPad.toDataURL('image/png');
+        }
+        if (technicianPad && !technicianPad.isEmpty()) {
+            document.getElementById('technician_signature_input').value = technicianPad.toDataURL('image/png');
+        }
+    });
+
+    // Handle HTML5 validation errors in hidden tabs
+    document.addEventListener("DOMContentLoaded", function() {
+        const form = document.getElementById('woForm');
+        if (form) {
+            form.addEventListener('invalid', function(e) {
+                const target = e.target;
+                const tabPane = target.closest('.tab-pane');
+                if (tabPane && !tabPane.classList.contains('active')) {
+                    // Find the tab button that controls this pane
+                    const tabId = tabPane.id;
+                    const tabButton = document.querySelector(`button[data-bs-target="#${tabId}"]`);
+                    if (tabButton) {
+                        const tab = new bootstrap.Tab(tabButton);
+                        tab.show();
+                    }
+                }
+            }, true); // Use capture phase
+        }
+        
+        // Checklist OK toggle logic
+        document.querySelectorAll('.chk-ok-toggle').forEach(function(chk) {
+            chk.addEventListener('change', function() {
+                const targetInput = document.getElementById(this.dataset.target);
+                if (targetInput) {
+                    if (this.checked) {
+                        targetInput.value = 'OK';
+                        targetInput.readOnly = true;
+                        targetInput.classList.add('bg-light');
+                        targetInput.classList.remove('border-warning');
+                        targetInput.classList.add('is-valid');
+                    } else {
+                        targetInput.value = '';
+                        targetInput.readOnly = false;
+                        targetInput.classList.remove('bg-light');
+                        targetInput.classList.remove('is-valid');
+                        targetInput.classList.add('border-warning');
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,4 @@
+POST received. form keys: ['csrf_token', 'asset_id', 'code', 'project_code', 'description', 'tasklist_id', 'custom_procedures_json', 'checklist_id', 'custom_checklists_json', 'work_instructions', 'maintenance_type', 'priority', 'team_id', 'assigned_to', 'suggested_start_date', 'suggested_completion_date', 'start_date', 'end_date', 'custom_parts_json']
+proc_json: [{"name":"ASD","estimated_minutes":0,"requires_attachment":true},{"name":"QWQW","estimated_minutes":0,"requires_attachment":false}]
+chk_json: [{"parameter":"QW","standard":"1"}]
+tasklist_id: 

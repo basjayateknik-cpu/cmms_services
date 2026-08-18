@@ -1,0 +1,2780 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+.settings-header {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 1rem;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+}
+.settings-header h3 { font-weight: 700; letter-spacing: -0.5px; }
+
+.premium-card-wrapper { border: none; background: transparent; box-shadow: none; }
+.premium-nav-container {
+    background: #ffffff;
+    border-radius: 1rem;
+    padding: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-behavior: smooth;
+}
+.premium-nav-container::-webkit-scrollbar { display: none; }
+.premium-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    border-bottom: none !important;
+}
+.premium-nav .nav-item { margin: 0; }
+.premium-nav .nav-link {
+    color: #64748b;
+    border-radius: 0.75rem;
+    padding: 0.6rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.premium-nav .nav-link:hover {
+    background-color: #f1f5f9;
+    color: #0f172a;
+    transform: translateY(-1px);
+}
+.premium-nav .nav-link.active {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+}
+.premium-nav .nav-link i { font-size: 1.1rem; }
+
+.settings-pane-card {
+    background: #ffffff;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+    border: 1px solid #f1f5f9;
+    animation: fadeIn 0.4s ease-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.table-premium {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+}
+.table-premium thead th {
+    background-color: #f8fafc;
+    color: #475569;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1rem;
+    border-bottom: 2px solid #e2e8f0;
+    border-top: none;
+}
+.table-premium tbody td {
+    padding: 1rem;
+    vertical-align: middle;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background-color 0.2s;
+}
+.table-premium tbody tr:hover td { background-color: #f8fafc; }
+
+.settings-form-card {
+    background: #f8fafc;
+    border-radius: 1rem;
+    border: 1px solid #e2e8f0;
+    padding: 1.5rem;
+    height: 100%;
+}
+.settings-form-card h5 {
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 1.5rem;
+    font-size: 1.1rem;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 0.75rem;
+}
+.settings-form-card .form-control, .settings-form-card .form-select {
+    border-radius: 0.5rem;
+    border: 1px solid #cbd5e1;
+    padding: 0.5rem 0.75rem;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+.settings-form-card .form-control:focus, .settings-form-card .form-select:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+.settings-form-card .btn-primary {
+    border-radius: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    border: none;
+    box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+    transition: all 0.2s;
+}
+.settings-form-card .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);
+}
+</style>
+
+<div class="settings-header d-flex justify-content-between align-items-center">
+    <h3 class="mb-0"><i class="bi bi-gear-fill me-3" style="color: #60a5fa;"></i>Settings & Administration</h3>
+</div>
+
+<div class="premium-card-wrapper">
+    <div class="d-flex align-items-center mb-4 gap-2">
+        <button class="btn btn-light rounded-circle shadow-sm flex-shrink-0" id="scrollLeftBtn" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; background: #fff;"><i class="bi bi-chevron-left text-primary fw-bold"></i></button>
+        
+        <div class="premium-nav-container flex-grow-1 mb-0" id="navContainer">
+            <ul class="nav premium-nav" id="settingsTab" role="tablist">
+            {% if not current_user.site_id %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold text-dark" id="sites-tab" data-bs-toggle="pill" data-bs-target="#sites" type="button" role="tab" aria-controls="sites" aria-selected="true"><i class="bi bi-geo-alt"></i> Sites</button>
+            </li>
+            {% endif %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if current_user.site_id %}active{% endif %} fw-bold text-dark" id="locations-tab" data-bs-toggle="pill" data-bs-target="#locations" type="button" role="tab" aria-controls="locations" aria-selected="{% if current_user.site_id %}true{% else %}false{% endif %}"><i class="bi bi-geo"></i> Locations</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-dark" id="categories-tab" data-bs-toggle="pill" data-bs-target="#categories" type="button" role="tab" aria-controls="categories" aria-selected="false"><i class="bi bi-tags"></i> Categories</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-dark" id="teams-tab" data-bs-toggle="pill" data-bs-target="#teams" type="button" role="tab" aria-controls="teams" aria-selected="false"><i class="bi bi-diagram-3"></i> Teams</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-dark" id="users-tab" data-bs-toggle="pill" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="false"><i class="bi bi-people"></i> Users</button>
+            </li>
+            {% if not current_user.site_id %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-dark" id="wo-statuses-tab" data-bs-toggle="pill" data-bs-target="#wo-statuses" type="button" role="tab" aria-controls="wo-statuses" aria-selected="false"><i class="bi bi-list-check"></i> WO Statuses</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-dark" id="project-codes-tab" data-bs-toggle="pill" data-bs-target="#project-codes" type="button" role="tab" aria-controls="project-codes" aria-selected="false"><i class="bi bi-briefcase"></i> Project Codes</button>
+            </li>
+            {% endif %}
+
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-dark" id="tasklists-tab" data-bs-toggle="pill" data-bs-target="#tasklists" type="button" role="tab" aria-controls="tasklists" aria-selected="false"><i class="bi bi-ui-checks"></i> Tasklists</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-dark" id="checklists-tab" data-bs-toggle="pill" data-bs-target="#checklists" type="button" role="tab" aria-controls="checklists" aria-selected="false"><i class="bi bi-list-check"></i> Checklists</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-dark" id="logsheet-templates-tab" data-bs-toggle="pill" data-bs-target="#logsheet-templates" type="button" role="tab" aria-controls="logsheet-templates" aria-selected="false"><i class="bi bi-journal-check"></i> Logsheet Templates</button>
+            </li>
+
+            {% if not current_user.site_id %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-dark" id="parts-tab" data-bs-toggle="pill" data-bs-target="#parts" type="button" role="tab" aria-controls="parts" aria-selected="false"><i class="bi bi-nut"></i> Master Parts</button>
+            </li>
+            {% endif %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-dark" id="customers-tab" data-bs-toggle="pill" data-bs-target="#customers" type="button" role="tab" aria-controls="customers" aria-selected="false"><i class="bi bi-building"></i> Customers</button>
+            </li>
+          </ul>
+      </div>
+      <button class="btn btn-light rounded-circle shadow-sm flex-shrink-0" id="scrollRightBtn" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: 1px solid #e2e8f0; background: #fff;"><i class="bi bi-chevron-right text-primary fw-bold"></i></button>
+    </div>
+    <div class="card-body p-0 mt-0">
+        <div class="settings-pane-card p-4 tab-content" id="settingsTabContent">
+            
+            {% if not current_user.site_id %}
+            <!-- Sites Tab -->
+            <div class="tab-pane fade show active" id="sites" role="tabpanel" aria-labelledby="sites-tab">
+                <div class="row align-items-start">
+                    <div class="{% if not current_user.site_id %}col-md-8{% else %}col-md-12{% endif %}">
+                        <table class="table table-hover table-premium">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Address</th>
+                                    <th>Timezone</th>
+                                    <th>Project Code</th>
+                                    <th>API Site ID</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for site in sites %}
+                                <tr>
+                                    <td>{{ site.id }}</td>
+                                    <td class="fw-bold">{{ site.name }}</td>
+                                    <td>{{ site.address or '-' }}</td>
+                                    <td>{{ site.timezone }}</td>
+                                    <td><span class="badge bg-secondary">{{ site.project_code or 'General' }}</span></td>
+                                    <td><span class="badge bg-info text-dark">{{ site.api_site_id or 'Unmapped' }}</span></td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-success" onclick="openSafeRangesModal({{ site.id }}, '{{ site.name|replace("'", "\\'") }}', '{{ site.api_site_id or "" }}')" title="Configure Safe Ranges"><i class="bi bi-sliders"></i></button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick='openEditSiteModal({{ site.id }}, {{ site.name|tojson }}, {{ site.address|tojson if site.address else "null" }}, {{ site.timezone|tojson }}, {{ site.api_site_id|tojson if site.api_site_id else "null" }}, {{ site.project_code|tojson if site.project_code else "null" }})'><i class="bi bi-pencil"></i></button>
+                                        {% if not current_user.site_id %}
+                                        <form action="{{ url_for('settings.delete_site', id=site.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this site?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-muted text-center py-3">No sites configured.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if not current_user.site_id %}
+                    <div class="col-md-4">
+                        <div class="settings-form-card">
+                            <div class="card-body">
+                                <h5>Add New Site</h5>
+                                <form action="{{ url_for('settings.add_site') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Site Name *</label>
+                                        <input type="text" name="name" class="form-control form-control-sm" required>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Address</label>
+                                        <input type="text" name="address" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Timezone</label>
+                                        <input type="text" name="timezone" class="form-control form-control-sm" value="UTC">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Project Code</label>
+                                        <select name="project_code" class="form-select form-select-sm">
+                                            <option value="">-- No Project Code (General) --</option>
+                                            {% for proj in project_codes %}
+                                            <option value="{{ proj.code }}">{{ proj.code }} - {{ proj.description or 'No desc' }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">API Site ID <small class="text-muted fw-normal">(Optional, for IoT Chiller Monitor)</small></label>
+                                        <input type="text" name="api_site_id" class="form-control form-control-sm" placeholder="e.g. btpn">
+                                    </div>
+                                    <button class="btn btn-sm btn-primary w-100"><i class="bi bi-plus"></i> Add Site</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Locations Tab -->
+            <div class="tab-pane fade {% if current_user.site_id %}show active{% endif %}" id="locations" role="tabpanel" aria-labelledby="locations-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-8">
+                        <div class="accordion" id="locationsAccordion">
+                            {% for site_name, site_locations in locations|groupby('site.name') %}
+                            <div class="accordion-item border-0 mb-3 shadow-sm rounded">
+                                <h2 class="accordion-header" id="headingSite{{ loop.index }}">
+                                    <button class="accordion-button collapsed fw-bold rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseSite{{ loop.index }}" aria-expanded="false" aria-controls="collapseSite{{ loop.index }}" style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+                                        <i class="bi bi-building me-2 text-primary"></i> {{ site_name }} 
+                                        <span class="badge bg-primary rounded-pill ms-auto" style="margin-right: 15px;">{{ site_locations|length }} Locations</span>
+                                    </button>
+                                </h2>
+                                <div id="collapseSite{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="headingSite{{ loop.index }}" data-bs-parent="#locationsAccordion">
+                                    <div class="accordion-body p-0 border border-top-0 rounded-bottom" style="border-color: #e2e8f0 !important; overflow: hidden;">
+                                        <table class="table table-hover table-premium mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th class="ps-4">#</th>
+                                                    <th>Location Name</th>
+                                                    <th>Description</th>
+                                                    <th class="text-end pe-4">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for loc in site_locations %}
+                                                <tr>
+                                                    <td class="ps-4">{{ loc.id }}</td>
+                                                    <td class="fw-bold">{{ loc.name }}</td>
+                                                    <td>{{ loc.description or '-' }}</td>
+                                                    <td class="text-end pe-4">
+                                                        <form action="{{ url_for('settings.delete_location', id=loc.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this location?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="text-muted text-center py-4 border rounded bg-light">No locations configured.</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="settings-form-card">
+                            <div class="card-body">
+                                <h5>Add New Location</h5>
+                                <form action="{{ url_for('settings.add_location') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Site *</label>
+                                        <select name="site_id" class="form-select form-select-sm" required>
+                                            <option value="">Select a Site...</option>
+                                            {% for site in sites %}
+                                            <option value="{{ site.id }}">{{ site.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Location Name *</label>
+                                        <input type="text" name="name" class="form-control form-control-sm" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Description</label>
+                                        <textarea name="description" class="form-control form-control-sm" rows="2"></textarea>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary w-100"><i class="bi bi-plus"></i> Add Location</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Categories Tab -->
+            <div class="tab-pane fade" id="categories" role="tabpanel" aria-labelledby="categories-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-8">
+                        <div class="card shadow-sm border-0 rounded-4 mb-4">
+                            <div class="card-header bg-white pb-0 border-0">
+                                <h5 class="fw-bold mb-0">Categories Tree</h5>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush border rounded">
+                                    {% for cat in categories %}
+                                    <li class="list-group-item px-3 py-3 border-bottom {% if loop.index % 2 == 0 %}bg-light{% endif %}">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="fw-bold text-dark fs-6">
+                                                <i class="bi bi-folder2-open text-warning me-2"></i> {{ cat.name }} 
+                                                <span class="badge bg-secondary ms-2 fw-normal" style="font-size:0.7rem;">{{ cat.type }}</span>
+                                            </span>
+                                            <form action="{{ url_for('settings.delete_category', id=cat.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this category and all its subcategories?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent p-0"><i class="bi bi-trash fs-5"></i></button>
+                                            </form>
+                                        </div>
+                                        
+                                        <!-- Subcategories Tree Branch -->
+                                        <ul class="list-group list-group-flush mt-2 ms-4 border-start border-2 border-primary rounded-0 pl-3">
+                                            {% for subcat in cat.subcategories %}
+                                            <li class="list-group-item bg-transparent border-0 py-1 pe-0 ps-3">
+                                                <div class="d-flex justify-content-between align-items-center bg-white p-2 rounded border shadow-sm" style="transition: all 0.2sease;">
+                                                    <span class="text-secondary small fw-semibold"><i class="bi bi-diagram-3 me-2"></i> {{ subcat.name }}</span>
+                                                    <form action="{{ url_for('settings.delete_subcategory', id=subcat.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this subcategory?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                        <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"><i class="bi bi-x-circle"></i></button>
+                                                    </form>
+                                                </div>
+                                            </li>
+                                            {% endfor %}
+                                            {% if not cat.subcategories.count() %}
+                                            <li class="list-group-item bg-transparent border-0 py-1 ps-3 text-muted small fst-italic">No subcategories defined.</li>
+                                            {% endif %}
+                                        </ul>
+                                    </li>
+                                    {% else %}
+                                    <li class="list-group-item text-center text-muted py-4">No categories configured.</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="settings-form-card">
+                            <div class="card-body">
+                                <h5>Add New Category</h5>
+                                <form action="{{ url_for('settings.add_category') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Category Name *</label>
+                                        <input type="text" name="name" class="form-control form-control-sm" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Type</label>
+                                        <select name="type" class="form-select form-select-sm">
+                                            <option value="Asset">Asset Category</option>
+                                            <option value="Part">Part Category</option>
+                                        </select>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary w-100"><i class="bi bi-plus"></i> Add Category</button>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="settings-form-card mt-4">
+                            <div class="card-body">
+                                <h5>Add Subcategory</h5>
+                                <form action="{{ url_for('settings.add_subcategory') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Parent Category *</label>
+                                        <select name="category_id" class="form-select form-select-sm" required>
+                                            <option value="">Select Category...</option>
+                                            {% for cat in categories %}
+                                            <option value="{{ cat.id }}">{{ cat.name }} ({{ cat.type }})</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Subcategory Name *</label>
+                                        <input type="text" name="name" class="form-control form-control-sm" required>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary w-100"><i class="bi bi-plus"></i> Add Subcategory</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Teams Tab -->
+            <div class="tab-pane fade" id="teams" role="tabpanel" aria-labelledby="teams-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-12">
+                        <div class="card shadow-sm border-0 rounded-4 mb-4">
+                            <div class="card-header bg-white pb-0 border-0 d-flex justify-content-between align-items-center">
+                                <h5 class="fw-bold mb-0">Management Tim</h5>
+                                <div>
+                                    <button class="btn btn-sm btn-primary" onclick="openAddTeamModal()"><i class="bi bi-plus text-white"></i> Add Team</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-hover table-premium">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Team Name</th>
+                                            <th>Site</th>
+                                            <th>Description</th>
+                                            <th>Members</th>
+                                            <th class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for team in teams %}
+                                        <tr>
+                                            <td>{{ team.id }}</td>
+                                            <td class="fw-bold">{{ team.name }}</td>
+                                            <td>{{ team.site.name }}</td>
+                                            <td>{{ team.description or '-' }}</td>
+                                            <td><span class="badge bg-secondary">{{ team.users.count() }}</span></td>
+                                            <td class="text-end">
+                                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="openEditTeamModal({{ team.id }}, '{{ team.name|replace('\'', '\\\'') }}', '{{ team.site_id }}', '{{ team.description|replace('\'', '\\\'') if team.description else '' }}', [{% for u in team.users %}'{{ u.id }}'{% if not loop.last %},{% endif %}{% endfor %}])"><i class="bi bi-pencil"></i></button>
+                                                <form action="{{ url_for('settings.delete_team', id=team.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Silakan konfirmasi untuk menghapus tim ini?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                        {% else %}
+                                        <tr>
+                                            <td colspan="6" class="text-muted text-center py-3">No teams configured.</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Users Tab -->
+            <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-8">
+                        <div class="card shadow-sm border-0 rounded-4 mb-4">
+                            <div class="card-header bg-white pb-0 border-0 d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="fw-bold mb-0">System Users</h5>
+                                <div>
+                                    <a href="{{ url_for('settings.download_user_template') }}" class="btn btn-sm btn-outline-info me-1"><i class="bi bi-file-earmark-spreadsheet"></i> Download Template</a>
+                                    <a href="{{ url_for('settings.export_users') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i> Export Excel</a>
+                                    <button class="btn btn-sm btn-outline-primary ms-1" data-bs-toggle="modal" data-bs-target="#importUsersModal"><i class="bi bi-upload"></i> Import Excel</button>
+                                </div>
+                            </div>
+                        <div class="accordion" id="usersAccordion">
+                            {% set no_site_users = users|selectattr("site_id", "none")|list %}
+                            {% set site_users_grouped = users|rejectattr("site_id", "none")|groupby("site_id") %}
+                            {% set pending_users = users|selectattr("is_approved", "equalto", False)|list %}
+
+                            {% if pending_users %}
+                            <div class="accordion-item border-0 mb-3 shadow-sm rounded">
+                                <h2 class="accordion-header" id="headingUserPending">
+                                    <button class="accordion-button collapsed fw-bold rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUserPending" aria-expanded="false" aria-controls="collapseUserPending" style="background-color: #fff3cd; border: 1px solid #ffe69c; color: #856404;">
+                                        <i class="bi bi-hourglass-split me-2 text-warning"></i> Menunggu Persetujuan (Pending)
+                                        <span class="badge bg-warning text-dark rounded-pill ms-auto" style="margin-right: 15px;">{{ pending_users|length }} Users</span>
+                                    </button>
+                                </h2>
+                                <div id="collapseUserPending" class="accordion-collapse collapse show" aria-labelledby="headingUserPending" data-bs-parent="#usersAccordion">
+                                    <div class="accordion-body p-0 border border-top-0 rounded-bottom" style="border-color: #ffe69c !important; overflow: hidden;">
+                                        <form action="{{ url_for('settings.bulk_action_users') }}" method="POST" id="bulkPendingUsersForm">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <div class="table-responsive m-0">
+                                            <div class="p-2 border-bottom d-flex align-items-center" style="background-color: #fffaf0;">
+                                                <div class="form-check mb-0 ms-3">
+                                                    <input class="form-check-input border-warning" type="checkbox" id="selectAllPending" onchange="toggleAllPending(this)">
+                                                    <label class="form-check-label small fw-bold text-dark" for="selectAllPending">Select All</label>
+                                                </div>
+                                                <div class="ms-auto">
+                                                    <button type="submit" name="action" value="approve" class="btn btn-sm btn-success me-2" onclick="return confirm('Approve selected users?');"><i class="bi bi-check-circle"></i> Approve Selected</button>
+                                                    <button type="submit" name="action" value="delete" class="btn btn-sm btn-danger me-2" onclick="return confirm('Tolak dan hapus selected users?');"><i class="bi bi-trash"></i> Delete Selected</button>
+                                                </div>
+                                            </div>
+                                            <table class="table table-hover table-premium mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="ps-4" style="width: 40px;"></th>
+                                                        <th>ID</th>
+                                                        <th>Nama Lengkap</th>
+                                                        <th>NRP</th>
+                                                        <th>Role</th>
+                                                        <th class="text-end pe-4">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for user in pending_users %}
+                                                    <tr>
+                                                        <td class="ps-4"><input class="form-check-input pending-user-checkbox border-secondary" type="checkbox" name="user_ids" value="{{ user.id }}"></td>
+                                                        <td>{{ user.id }}</td>
+                                                        <td class="fw-bold">{{ user.name }}</td>
+                                                        <td>{{ user.nrp }}</td>
+                                                        <td>
+                                                            <span class="badge bg-secondary fw-normal">{{ user.role }}</span>
+                                                        </td>
+                                                        <td class="text-end pe-4">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openEditUserModal({{ user.id }}, '{{ user.name|replace('\'', '\\\'') }}', '{{ user.nrp|replace('\'', '\\\'') }}', '{{ user.role }}', '{{ user.site_id or 0 }}', '{{ user.team_id or 0 }}', '{{ user.phone_number or '' }}', '{{ user.is_approved }}')"><i class="bi bi-pencil"></i> Approve / Edit</button>
+                                                            <form action="{{ url_for('settings.delete_user', id=user.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Tolak dan hapus user ini?');">
+                                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                                            </form>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if no_site_users %}
+                            <div class="accordion-item border-0 mb-3 shadow-sm rounded">
+                                <h2 class="accordion-header" id="headingUserSiteGlobal">
+                                    <button class="accordion-button collapsed fw-bold rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUserSiteGlobal" aria-expanded="false" aria-controls="collapseUserSiteGlobal" style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+                                        <i class="bi bi-building me-2 text-primary"></i> Kantor Pusat / All Sites 
+                                        <span class="badge bg-primary rounded-pill ms-auto" style="margin-right: 15px;">{{ no_site_users|length }} Users</span>
+                                    </button>
+                                </h2>
+                                <div id="collapseUserSiteGlobal" class="accordion-collapse collapse" aria-labelledby="headingUserSiteGlobal" data-bs-parent="#usersAccordion">
+                                    <div class="accordion-body p-0 border border-top-0 rounded-bottom" style="border-color: #e2e8f0 !important; overflow: hidden;">
+                                        <div class="table-responsive m-0">
+                                            <table class="table table-hover table-premium mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="ps-4">ID</th>
+                                                        <th>Nama Lengkap</th>
+                                                        <th>NRP</th>
+                                                        <th>Tim</th>
+                                                        <th>Role</th>
+                                                        <th class="text-end pe-4">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for user in no_site_users %}
+                                                    <tr>
+                                                        <td class="ps-4">{{ user.id }}</td>
+                                                        <td class="fw-bold">{{ user.name }}</td>
+                                                        <td>{{ user.nrp }}</td>
+                                                        <td>
+                                                            {% if user.team %}
+                                                                <span class="badge bg-info text-dark fw-normal"><i class="bi bi-diagram-3"></i> {{ user.team.name }}</span>
+                                                            {% else %}
+                                                                <span class="text-muted small">-</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            {% if user.role == 'Admin' %}
+                                                                <span class="badge bg-danger fw-normal">Admin</span>
+                                                            {% elif user.role == 'Technician' %}
+                                                                <span class="badge bg-primary fw-normal">Technician</span>
+                                                            {% elif user.role == 'User' %}
+                                                                <span class="badge bg-info fw-normal">User</span>
+                                                            {% else %}
+                                                                <span class="badge bg-secondary fw-normal">{{ user.role }}</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td class="text-end pe-4">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openEditUserModal({{ user.id }}, '{{ user.name|replace('\'', '\\\'') }}', '{{ user.nrp|replace('\'', '\\\'') }}', '{{ user.role }}', '{{ user.site_id or 0 }}', '{{ user.team_id or 0 }}', '{{ user.phone_number or '' }}', '{{ user.is_approved }}')"><i class="bi bi-pencil"></i></button>
+                                                            {% if user.id != current_user.id %}
+                                                            <form action="{{ url_for('settings.delete_user', id=user.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus user ini?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                                            </form>
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% for site_id, site_users in site_users_grouped %}
+                            {% set site_name = site_users[0].site.name if site_users[0].site else 'Unknown Site' %}
+                            <div class="accordion-item border-0 mb-3 shadow-sm rounded">
+                                <h2 class="accordion-header" id="headingUserSite{{ loop.index }}">
+                                    <button class="accordion-button collapsed fw-bold rounded" type="button" data-bs-toggle="collapse" data-bs-target="#collapseUserSite{{ loop.index }}" aria-expanded="false" aria-controls="collapseUserSite{{ loop.index }}" style="background-color: #f8fafc; border: 1px solid #e2e8f0;">
+                                        <i class="bi bi-building me-2 text-primary"></i> {{ site_name }} 
+                                        <span class="badge bg-primary rounded-pill ms-auto" style="margin-right: 15px;">{{ site_users|length }} Users</span>
+                                    </button>
+                                </h2>
+                                <div id="collapseUserSite{{ loop.index }}" class="accordion-collapse collapse" aria-labelledby="headingUserSite{{ loop.index }}" data-bs-parent="#usersAccordion">
+                                    <div class="accordion-body p-0 border border-top-0 rounded-bottom" style="border-color: #e2e8f0 !important; overflow: hidden;">
+                                        <div class="table-responsive m-0">
+                                            <table class="table table-hover table-premium mb-0">
+                                                <thead class="table-light">
+                                                    <tr>
+                                                        <th class="ps-4">ID</th>
+                                                        <th>Nama Lengkap</th>
+                                                        <th>NRP</th>
+                                                        <th>Tim</th>
+                                                        <th>Role</th>
+                                                        <th class="text-end pe-4">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {% for user in site_users %}
+                                                    <tr>
+                                                        <td class="ps-4">{{ user.id }}</td>
+                                                        <td class="fw-bold">{{ user.name }}</td>
+                                                        <td>{{ user.nrp }}</td>
+                                                        <td>
+                                                            {% if user.team %}
+                                                                <span class="badge bg-info text-dark fw-normal"><i class="bi bi-diagram-3"></i> {{ user.team.name }}</span>
+                                                            {% else %}
+                                                                <span class="text-muted small">-</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td>
+                                                            {% if user.role == 'Admin' %}
+                                                                <span class="badge bg-danger fw-normal">Admin</span>
+                                                            {% elif user.role == 'Technician' %}
+                                                                <span class="badge bg-primary fw-normal">Technician</span>
+                                                            {% elif user.role == 'User' %}
+                                                                <span class="badge bg-info fw-normal">User</span>
+                                                            {% else %}
+                                                                <span class="badge bg-secondary fw-normal">{{ user.role }}</span>
+                                                            {% endif %}
+                                                        </td>
+                                                        <td class="text-end pe-4">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openEditUserModal({{ user.id }}, '{{ user.name|replace('\'', '\\\'') }}', '{{ user.nrp|replace('\'', '\\\'') }}', '{{ user.role }}', '{{ user.site_id or 0 }}', '{{ user.team_id or 0 }}', '{{ user.phone_number or '' }}', '{{ user.is_approved }}')"><i class="bi bi-pencil"></i></button>
+                                                            {% if user.id != current_user.id %}
+                                                            <form action="{{ url_for('settings.delete_user', id=user.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Hapus user ini?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                                            </form>
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
+                            <div class="text-muted text-center py-4 border rounded bg-light">No users configured.</div>
+                            {% endfor %}
+                        </div>
+                        </div> <!-- end card -->
+                    </div>
+                    <div class="col-md-4">
+                        <div class="settings-form-card">
+                            <div class="card-body">
+                                <h5>Add New User</h5>
+                                <form action="{{ url_for('settings.add_user') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Nama Lengkap *</label>
+                                        <input type="text" name="name" class="form-control form-control-sm" required>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">NRP *</label>
+                                        <input type="text" name="nrp" class="form-control form-control-sm" required>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Password *</label>
+                                        <input type="password" name="password" class="form-control form-control-sm" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Role *</label>
+                                        <select class="form-select form-select-sm" name="role" required>
+                                            <option value="Technician">Technician</option>
+                                            <option value="User">User</option>
+                                            <option value="Supervisor">Supervisor</option>
+                                            <option value="Admin">Admin</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Assigned Site (or Team)</label>
+                                        <select class="form-select form-select-sm" name="site_id">
+                                            <option value="0">-- Kantor Pusat / All Sites --</option>
+                                            {% for site in sites %}
+                                            <option value="{{ site.id }}">{{ site.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Team <small class="text-muted fw-normal">(Optional)</small></label>
+                                        <select class="form-select form-select-sm" name="team_id">
+                                            <option value="0">-- No Team --</option>
+                                            {% for site in sites %}
+                                                {% if site.teams.count() > 0 %}
+                                                <optgroup label="{{ site.name }}">
+                                                    {% for team in site.teams %}
+                                                    <option value="{{ team.id }}">{{ team.name }}</option>
+                                                    {% endfor %}
+                                                </optgroup>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">No WhatsApp <small class="text-muted fw-normal">(Format: 628...)</small></label>
+                                        <input type="text" name="phone_number" class="form-control form-control-sm" placeholder="628123456789">
+                                    </div>
+                                    <button class="btn btn-sm btn-primary w-100"><i class="bi bi-person-plus"></i> Add User</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            {% if not current_user.site_id %}
+            <!-- WO Statuses Tab -->
+            <div class="tab-pane fade" id="wo-statuses" role="tabpanel" aria-labelledby="wo-statuses-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-8">
+                        <table class="table table-hover table-premium">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Status Name</th>
+                                    <th>State Type</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for status in statuses %}
+                                <tr>
+                                    <td>{{ status.id }}</td>
+                                    <td class="fw-bold">{{ status.name }}</td>
+                                    <td>
+                                        {% if status.state_type == 'Open' %}
+                                            <span class="badge bg-primary">Open</span>
+                                        {% elif status.state_type == 'Pending' %}
+                                            <span class="badge bg-warning text-dark">Pending</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ status.state_type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ status.description or '-' }}</td>
+                                    <td class="text-end">
+                                        <form action="{{ url_for('settings.delete_wo_status', id=status.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this work order status?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="openEditWOStatusModal({{ status.id }}, '{{ status.name|replace('\'', '\\\'') }}', '{{ status.state_type }}', '{{ (status.description or '')|replace('\n', '\\n')|replace('\'', '\\\'') }}')"><i class="bi bi-pencil"></i></button>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" {% if status.name in ['Open', 'Completed', 'Closed'] %}disabled title="Cannot delete system status"{% endif %}><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-muted text-center py-3">No statuses configured.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="settings-form-card">
+                            <div class="card-body">
+                                <h5>Add New Status</h5>
+                                <form action="{{ url_for('settings.add_wo_status') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Status Name *</label>
+                                        <input type="text" name="name" class="form-control form-control-sm" required>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">State Type</label>
+                                        <select name="state_type" class="form-select form-select-sm">
+                                            <option value="Open">Open</option>
+                                            <option value="Pending">Pending</option>
+                                            <option value="Closed">Closed</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Description</label>
+                                        <textarea name="description" class="form-control form-control-sm" rows="2"></textarea>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary w-100"><i class="bi bi-plus"></i> Add Status</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            {% if not current_user.site_id %}
+            <!-- Project Codes Tab -->
+            <div class="tab-pane fade" id="project-codes" role="tabpanel" aria-labelledby="project-codes-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-8">
+                        <table class="table table-hover table-premium">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Project Code</th>
+                                    <th>Description</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for proj in project_codes %}
+                                <tr>
+                                    <td>{{ proj.id }}</td>
+                                    <td class="fw-bold">{{ proj.code }}</td>
+                                    <td>{{ proj.description or '-' }}</td>
+                                    <td class="text-end">
+                                        <form action="{{ url_for('settings.delete_project_code', id=proj.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this project code?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-muted text-center py-3">No project codes configured.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="settings-form-card">
+                            <div class="card-body">
+                                <h5>Add New Project Code</h5>
+                                <form action="{{ url_for('settings.add_project_code') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Project Code *</label>
+                                        <input type="text" name="code" class="form-control form-control-sm" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Description</label>
+                                        <textarea name="description" class="form-control form-control-sm" rows="2"></textarea>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary w-100"><i class="bi bi-plus"></i> Add Project Code</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="tab-pane fade" id="tasklists" role="tabpanel" aria-labelledby="tasklists-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-12">
+                        <div class="card shadow-sm border-0 rounded-4 mb-4">
+                            <div class="card-header bg-white pb-0 border-0 d-flex justify-content-between align-items-center">
+                                <h5 class="fw-bold mb-0">Tasklists & Procedures</h5>
+                                <div>
+                                    <a href="{{ url_for('settings.export_tasklists') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i> Export Excel</a>
+                                    <button class="btn btn-sm btn-outline-primary ms-1" data-bs-toggle="modal" data-bs-target="#importTasklistsModal"><i class="bi bi-upload"></i> Import Excel</button>
+                                    <button class="btn btn-sm btn-primary ms-1" onclick="openAddTasklistModal()"><i class="bi bi-plus text-white"></i> Add Tasklist</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush border rounded">
+                                    {% for proj, group in tasklists|groupby('project_code_group') %}
+                                    <li class="list-group-item px-3 py-3 border-bottom bg-white">
+                                        <h6 class="fw-bold mb-2 text-dark"><i class="bi bi-folder2-open text-primary me-2"></i> {{ proj if proj else 'General (No Project Code)' }}</h6>
+                                        <ul class="list-group list-group-flush border-start border-3 border-light ms-3">
+                                            {% for tl in group %}
+                                            <li class="list-group-item px-3 py-2 border-0 border-bottom border-light">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <button class="btn btn-link text-decoration-none text-start p-0 m-0 d-flex flex-column flex-grow-1 collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTasklist{{ tl.id }}" aria-expanded="false" style="color: inherit;">
+                                                        <span class="fw-bold text-dark fs-6">
+                                                            <i class="bi bi-ui-checks text-secondary me-2"></i> {{ tl.name }} 
+                                                            <i class="bi bi-chevron-down ms-2 toggle-icon text-muted" style="transition: transform 0.2s; font-size: 0.8rem;"></i>
+                                                        </span>
+                                                        {% if tl.description %}
+                                                        <div class="text-muted small ms-4">{{ tl.description }}</div>
+                                                        {% endif %}
+                                                    </button>
+                                                    <div class="d-inline-flex ms-3 align-items-center">
+                                                        <button type="button" class="btn btn-sm text-primary border-0 bg-transparent p-0 me-3" onclick='openEditTasklistModal({{ tl.id }}, {{ tl.name|tojson }}, {{ tl.description|tojson if tl.description else "null" }}, {{ tl.project_code|tojson if tl.project_code else "null" }})'><i class="bi bi-pencil fs-5"></i></button>
+                                                        <form action="{{ url_for('settings.delete_tasklist', id=tl.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this Tasklist and ALL its procedures?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                            <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent p-0"><i class="bi bi-trash fs-5"></i></button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Procedures Branch -->
+                                                <div class="collapse" id="collapseTasklist{{ tl.id }}">
+                                                <div class="ms-4 mt-2 mb-1 fw-bold small text-muted"><i class="bi bi-list-task"></i> Procedures</div>
+                                                <ul class="list-group list-group-flush ms-4 mb-2 border-start border-2 border-primary rounded-0 pl-3">
+                                                    {% for proc in tl.procedures %}
+                                                    <li class="list-group-item bg-transparent border-0 py-1 pe-0 ps-3">
+                                                        <div class="d-flex justify-content-between align-items-center bg-white p-2 rounded border shadow-sm" style="transition: all 0.2sease;">
+                                                            <span class="text-secondary small fw-semibold">
+                                                                <i class="bi bi-arrow-right-short text-success"></i> {{ proc.name }}
+                                                                {% if proc.requires_attachment %}
+                                                                <span class="badge bg-info text-dark ms-2" style="font-size:0.65rem;"><i class="bi bi-camera"></i> Photo Required</span>
+                                                                {% endif %}
+                                                            </span>
+                                                            <form action="{{ url_for('settings.delete_tasklist_procedure', id=proc.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this procedure?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"><i class="bi bi-x-circle"></i></button>
+                                                            </form>
+                                                        </div>
+                                                    </li>
+                                                    {% endfor %}
+                                                    {% if not tl.procedures.count() %}
+                                                    <li class="list-group-item bg-transparent border-0 py-1 ps-3 text-muted small fst-italic">No procedures defined.</li>
+                                                    {% endif %}
+                                                </ul>
+                                                </div>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </li>
+                                    {% else %}
+                                    <li class="list-group-item text-center text-muted py-4">No Tasklists configured.</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Checklists Tab -->
+            <div class="tab-pane fade" id="checklists" role="tabpanel" aria-labelledby="checklists-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-12">
+                        <div class="card shadow-sm border-0 rounded-4 mb-4">
+                            <div class="card-header bg-white pb-0 border-0 d-flex justify-content-between align-items-center">
+                                <h5 class="fw-bold mb-0">Checklist Data Parameters</h5>
+                                <div>
+                                    <a href="{{ url_for('settings.export_checklists') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-download"></i> Export Excel</a>
+                                    <button class="btn btn-sm btn-outline-primary ms-1" data-bs-toggle="modal" data-bs-target="#importChecklistsModal"><i class="bi bi-upload"></i> Import Excel</button>
+                                    <button class="btn btn-sm btn-warning ms-1" onclick="openAddChecklistModal()"><i class="bi bi-plus text-dark"></i> Add Checklist</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush border rounded">
+                                    {% for proj, group in checklists|groupby('project_code_group') %}
+                                    <li class="list-group-item px-3 py-3 border-bottom bg-white">
+                                        <h6 class="fw-bold mb-2 text-dark"><i class="bi bi-folder2-open text-warning me-2"></i> {{ proj if proj else 'General (No Project Code)' }}</h6>
+                                        <ul class="list-group list-group-flush border-start border-3 border-light ms-3">
+                                            {% for cl in group %}
+                                            <li class="list-group-item px-3 py-2 border-0 border-bottom border-light">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <button class="btn btn-link text-decoration-none text-start p-0 m-0 flex-grow-1 collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseChecklist{{ cl.id }}" aria-expanded="false" style="color: inherit;">
+                                                        <span class="fw-bold text-dark fs-6">
+                                                            <i class="bi bi-list-check text-secondary me-2"></i> {{ cl.name }} 
+                                                            <i class="bi bi-chevron-down ms-2 toggle-icon text-muted" style="transition: transform 0.2s; font-size: 0.8rem;"></i>
+                                                        </span>
+                                                    </button>
+                                                    <div class="d-inline-flex ms-3 align-items-center">
+                                                        <button type="button" class="btn btn-sm text-primary border-0 bg-transparent p-0 me-3" onclick='openEditChecklistModal({{ cl.id }}, {{ cl.name|tojson }}, {{ cl.project_code|tojson if cl.project_code else "null" }})'><i class="bi bi-pencil fs-5"></i></button>
+                                                        <form action="{{ url_for('settings.delete_checklist', id=cl.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this Checklist and ALL its parameters?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                            <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent p-0"><i class="bi bi-trash fs-5"></i></button>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Checklist Parameters Branch -->
+                                                <div class="collapse" id="collapseChecklist{{ cl.id }}">
+                                                <div class="ms-4 mt-2 mb-1 fw-bold small text-muted"><i class="bi bi-input-cursor"></i> Parameters</div>
+                                                <ul class="list-group list-group-flush ms-4 border-start border-2 border-warning rounded-0 pl-3">
+                                                    {% for param in cl.parameters %}
+                                                    <li class="list-group-item bg-transparent border-0 py-1 pe-0 ps-3">
+                                                        <div class="d-flex justify-content-between align-items-center bg-white p-2 rounded border shadow-sm" style="transition: all 0.2sease;">
+                                                            <span class="text-secondary small fw-semibold">
+                                                                <i class="bi bi-rulers text-warning"></i> {{ param.parameter }}
+                                                                <span class="badge bg-light text-dark border ms-2" style="font-size:0.65rem;">Std: {{ param.standard }}</span>
+                                                            </span>
+                                                            <form action="{{ url_for('settings.delete_checklist_parameter', id=param.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this checklist parameter?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"><i class="bi bi-x-circle"></i></button>
+                                                            </form>
+                                                        </div>
+                                                    </li>
+                                                    {% endfor %}
+                                                    {% if not cl.parameters.count() %}
+                                                    <li class="list-group-item bg-transparent border-0 py-1 ps-3 text-muted small fst-italic">No parameters defined.</li>
+                                                    {% endif %}
+                                                </ul>
+                                                </div>
+                                            </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </li>
+                                    {% else %}
+                                    <li class="list-group-item text-center text-muted py-4">No Checklists configured.</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+
+<!-- Logsheet Templates Tab -->
+            <div class="tab-pane fade" id="logsheet-templates" role="tabpanel" aria-labelledby="logsheet-templates-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-12">
+                        <div class="card shadow-sm border-0 rounded-4 mb-4">
+                            <div class="card-header bg-white pb-0 border-0 d-flex justify-content-between align-items-center">
+                                <h5 class="fw-bold mb-0">Logsheet Templates (Operasional)</h5>
+                                <div>
+                                    <button class="btn btn-sm btn-primary ms-1" onclick="openAddLogsheetTemplateModal()"><i class="bi bi-plus text-white"></i> Add Template</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush border rounded">
+                                    {% for lt in logsheet_templates %}
+                                    <li class="list-group-item px-3 py-3 border-bottom bg-white">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <button class="btn btn-link text-decoration-none text-start p-0 m-0 flex-grow-1 collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLogsheetTemplate{{ lt.id }}" aria-expanded="false" style="color: inherit;">
+                                                <span class="fw-bold text-dark fs-6">
+                                                    <i class="bi bi-journal-text text-primary me-2"></i> {{ lt.name }} 
+                                                    <i class="bi bi-chevron-down ms-2 toggle-icon text-muted" style="transition: transform 0.2s; font-size: 0.8rem;"></i>
+                                                </span>
+                                            </button>
+                                            <div class="d-inline-flex ms-3 align-items-center">
+                                                <button type="button" class="btn btn-sm text-primary border-0 bg-transparent p-0 me-3" onclick='openEditLogsheetTemplateModal({{ lt.id }}, {{ lt.name|tojson }}, {{ lt.parameters.all()|map(attribute="__dict__")|list|tojson|replace("\"_sa_instance_state\"", "") }})'><i class="bi bi-pencil fs-5"></i></button>
+                                                <form action="{{ url_for('settings.delete_logsheet_template', id=lt.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this Template and ALL its parameters?');">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                                    <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent p-0"><i class="bi bi-trash fs-5"></i></button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Template Parameters Branch -->
+                                        <div class="collapse" id="collapseLogsheetTemplate{{ lt.id }}">
+                                        <div class="ms-4 mt-2 mb-1 fw-bold small text-muted"><i class="bi bi-input-cursor"></i> Parameters</div>
+                                        <ul class="list-group list-group-flush ms-4 border-start border-2 border-primary rounded-0 pl-3">
+                                            {% for param in lt.parameters %}
+                                            <li class="list-group-item bg-transparent border-0 py-1 pe-0 ps-3">
+                                                <div class="d-flex justify-content-between align-items-center bg-white p-2 rounded border shadow-sm" style="transition: all 0.2sease;">
+                                                    <span class="text-secondary small fw-semibold">
+                                                        <i class="bi bi-record-circle text-primary"></i> {{ param.name }}
+                                                        <span class="badge bg-light text-dark border ms-2" style="font-size:0.65rem;">Type: {{ param.entry_type }}</span>
+                                                        {% if param.unit %}<span class="badge bg-light text-dark border ms-1" style="font-size:0.65rem;">Unit: {{ param.unit }}</span>{% endif %}
+                                                        {% if param.standard_min is not none %}<span class="badge bg-light text-dark border ms-1" style="font-size:0.65rem;">Min: {{ param.standard_min }}</span>{% endif %}
+                                                        {% if param.standard_max is not none %}<span class="badge bg-light text-dark border ms-1" style="font-size:0.65rem;">Max: {{ param.standard_max }}</span>{% endif %}
+                                                    </span>
+                                                </div>
+                                            </li>
+                                            {% endfor %}
+                                            {% if not lt.parameters.count() %}
+                                            <li class="list-group-item bg-transparent border-0 py-1 ps-3 text-muted small fst-italic">No parameters defined.</li>
+                                            {% endif %}
+                                        </ul>
+                                        </div>
+                                    </li>
+                                    {% else %}
+                                    <li class="list-group-item text-center text-muted py-4">No Logsheet Templates configured.</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+<!-- Chiller Faults Tab -->
+<div class="tab-pane fade" id="chiller-faults" role="tabpanel" aria-labelledby="chiller-faults-tab">
+    <div class="row align-items-start">
+        <div class="col-md-7">
+            <div class="card shadow-sm border-0 rounded-4 mb-4">
+                <div class="card-header bg-white pb-0 border-0 d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0">Chiller Fault Mappings</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush border rounded">
+                        {% for c_type, categories_dict in chiller_faults.items() %}
+                        <li class="list-group-item px-3 py-3 border-bottom {% if loop.index % 2 == 0 %}bg-light{% endif %}">
+                            <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                                <span class="fw-bold text-dark fs-5">
+                                    <i class="bi bi-cpu text-info me-2"></i> {{ c_type }} 
+                                </span>
+                                <form action="{{ url_for('settings.delete_chiller_faults_by_type', chiller_type=c_type) }}" method="POST" class="d-inline" onsubmit="return confirm('WARNING: Are you sure you want to delete ALL fault codes for {{ c_type }}?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete Entire Chiller</button>
+                                </form>
+                            </div>
+                            
+                            {% for cat_name, mappings in categories_dict.items() %}
+                            <div class="d-flex justify-content-between align-items-end ms-4 mt-3 mb-1">
+                                <div class="fw-bold small text-primary mb-1"><i class="bi bi-tag-fill me-1"></i> {{ cat_name }}</div>
+                                <form action="{{ url_for('settings.delete_chiller_faults_by_category', chiller_type=c_type, category=cat_name) }}" method="POST" class="d-inline" onsubmit="return confirm('WARNING: Are you sure you want to delete all {{ cat_name }} codes for {{ c_type }}?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0 px-1" title="Delete entire category"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </div>
+                            <ul class="list-group list-group-flush ms-4 border-start border-2 border-primary rounded-0 pl-3">
+                                {% for m in mappings %}
+                                <li class="list-group-item bg-transparent border-0 py-1 pe-0 ps-3">
+                                    <div class="d-flex justify-content-between align-items-center bg-white p-2 rounded border shadow-sm">
+                                        <span class="text-secondary small fw-semibold">
+                                            <span class="badge bg-danger ms-2" style="font-family: monospace;">{{ m.fault_code }}</span> {{ m.description }}
+                                        </span>
+                                        <form action="{{ url_for('settings.delete_chiller_fault', id=m.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this fault code?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"><i class="bi bi-x-circle"></i></button>
+                                        </form>
+                                    </div>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% endfor %}
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-center text-muted py-4">No Chiller Fault Mappings configured.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="card bg-light border-0 mb-3">
+                <div class="card-body">
+                    <h5 class="fw-bold"><i class="bi bi-file-earmark-code text-primary me-2"></i> Paste Dictionary format</h5>
+                    <form action="{{ url_for('settings.import_chiller_fault_dict') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold">Chiller Type <span class="text-danger">*</span></label>
+                            <input type="text" name="chiller_type" class="form-control form-control-sm" required placeholder="e.g. pakubuwono">
+                            <div class="form-text mt-1" style="font-size: 0.7rem;">Matching `chiller_type` code from IoT endpoint.</div>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold">Fault Category <span class="text-danger">*</span></label>
+                            <select name="category" class="form-select form-select-sm" required>
+                                <option value="general">General / Uncategorized</option>
+                                <option value="safety_fault">Safety Fault</option>
+                                <option value="cycling_fault">Cycling Fault</option>
+                                <option value="warning">Warning / Warning Fault</option>
+                                <option value="operating_code">Operating Code</option>
+                                <option value="alarm">Alarm</option>
+                                <option value="fault_code">Fault / Fault Code</option>
+                            </select>
+                            <div class="form-text mt-1" style="font-size: 0.7rem;">Select the specific category for this dictionary.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Python Dictionary Data <span class="text-danger">*</span></label>
+                            <textarea name="dict_text" class="form-control font-monospace" style="font-size: 0.85rem;" rows="10" required placeholder="{&#10;  0: 'No Faults/Inhibits Present',&#10;  118: 'Safety Fault - COND High PRESS',&#10;  119: 'Safety Fault - EVAP Low PRESS'&#10;}"></textarea>
+                            <div class="form-text text-secondary mt-1" style="font-size: 0.7rem;">Paste the entire Python dictionary. Example format shown in placeholder.</div>
+                        </div>
+                        <button class="btn btn-primary w-100"><i class="bi bi-upload"></i> Process Dictionary</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+            <!-- Helpdesk Modules Tab -->
+            <div class="tab-pane fade" id="hd-modules" role="tabpanel" aria-labelledby="hd-modules-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-8">
+                        <table class="table table-hover border">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Module Name</th>
+                                    <th>Assigned Site</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for mod in hd_modules %}
+                                <tr>
+                                    <td>{{ mod.id }}</td>
+                                    <td class="fw-bold">{{ mod.name }}</td>
+                                    <td>
+                                        {% if mod.site %}
+                                            <span class="badge bg-info text-dark">{{ mod.site.name }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary text-white">Global / Undefined</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="openEditHDModuleModal({{ mod.id }}, '{{ mod.name|replace("'", "\\'") }}', '{{ mod.site_id or '' }}')"><i class="bi bi-pencil"></i></button>
+                                        <form action="{{ url_for('settings.delete_hd_module', id=mod.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this module?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center text-muted py-3">No modules configured.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="settings-form-card">
+                            <div class="card-body">
+                                <h5>Add HD Module</h5>
+                                <form action="{{ url_for('settings.add_hd_module') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Module Name</label>
+                                        <input type="text" name="name" class="form-control form-control-sm" placeholder="Module Name" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Site</label>
+                                        <select name="site_id" class="form-select form-select-sm" required>
+                                            <option value="">-- Select Site --</option>
+                                            {% for site in sites %}
+                                            <option value="{{ site.id }}">{{ site.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary w-100"><i class="bi bi-plus"></i> Add Module</button>
+                                </form>
+                                <div class="mt-3 pt-3 border-top">
+                                    <label class="form-label small fw-bold d-block text-muted">Bulk Actions</label>
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ url_for('settings.export_hd_modules') }}" class="btn btn-sm btn-outline-success flex-fill"><i class="bi bi-download"></i> Export CSV</a>
+                                        <button type="button" class="btn btn-sm btn-outline-info flex-fill" data-bs-toggle="modal" data-bs-target="#importHDModulesModal"><i class="bi bi-upload"></i> Import CSV</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Helpdesk Locations Tab -->
+            <div class="tab-pane fade" id="hd-locations" role="tabpanel" aria-labelledby="hd-locations-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-8">
+                        <table class="table table-hover border">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Location Name</th>
+                                    <th>Assigned Site</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for loc in hd_locations %}
+                                <tr>
+                                    <td>{{ loc.id }}</td>
+                                    <td class="fw-bold">{{ loc.name }}</td>
+                                    <td>
+                                        {% if loc.site %}
+                                            <span class="badge bg-warning text-dark">{{ loc.site.name }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary text-white">Global / Undefined</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <button class="btn btn-sm btn-outline-primary" onclick="openEditHDLocationModal({{ loc.id }}, '{{ loc.name|replace("'", "\\'") }}', '{{ loc.site_id or '' }}')"><i class="bi bi-pencil"></i></button>
+                                        <form action="{{ url_for('settings.delete_hd_location', id=loc.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this location?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr><td colspan="4" class="text-center text-muted py-3">No locations configured.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="settings-form-card">
+                            <div class="card-body">
+                                <h5>Add HD Location</h5>
+                                <form action="{{ url_for('settings.add_hd_location') }}" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Location Name</label>
+                                        <input type="text" name="name" class="form-control form-control-sm" placeholder="Location Name" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Site</label>
+                                        <select name="site_id" class="form-select form-select-sm" required>
+                                            <option value="">-- Select Site --</option>
+                                            {% for site in sites %}
+                                            <option value="{{ site.id }}">{{ site.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary w-100"><i class="bi bi-plus"></i> Add Location</button>
+                                </form>
+                                <div class="mt-3 pt-3 border-top">
+                                    <label class="form-label small fw-bold d-block text-muted">Bulk Actions</label>
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ url_for('settings.export_hd_locations') }}" class="btn btn-sm btn-outline-success flex-fill"><i class="bi bi-download"></i> Export CSV</a>
+                                        <button type="button" class="btn btn-sm btn-outline-info flex-fill" data-bs-toggle="modal" data-bs-target="#importHDLocationsModal"><i class="bi bi-upload"></i> Import CSV</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% if not current_user.site_id %}
+            <!-- Master Parts Tab -->
+            <div class="tab-pane fade" id="parts" role="tabpanel" aria-labelledby="parts-tab">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Master Parts</h5>
+                    <div>
+                        <a href="{{ url_for('settings.export_parts') }}" class="btn btn-success btn-sm me-1"><i class="bi bi-download"></i> Export Excel</a>
+                        <button type="button" class="btn btn-info btn-sm me-1 text-white" data-bs-toggle="modal" data-bs-target="#importPartsModal"><i class="bi bi-upload"></i> Import Excel</button>
+                        <a href="{{ url_for('settings.create_part') }}" class="btn btn-primary btn-sm"><i class="bi bi-plus-circle"></i> Add Part</a>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover table-premium">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Product Code</th>
+                                <th>Name</th>
+                                <th>Unit</th>
+                                <th>Price</th>
+                                <th>Cost</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for part in parts %}
+                            <tr>
+                                <td>{{ part.id }}</td>
+                                <td><span class="badge bg-secondary">{{ part.code }}</span></td>
+                                <td class="fw-bold">{{ part.name }}</td>
+                                <td><span class="badge bg-info text-dark">{{ part.unit or '-' }}</span></td>
+                                <td>{% if part.currency == 'USD' %}${% else %}Rp {% endif %}{{ "{:,.2f}".format(part.price) }}</td>
+                                <td>{% if part.currency == 'USD' %}${% else %}Rp {% endif %}{{ "{:,.2f}".format(part.unit_cost) }}</td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('settings.edit_part', id=part.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                                    <form action="{{ url_for('settings.delete_part', id=part.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this master part? This will also remove its stock from all warehouses.');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-muted text-center py-3">No master parts created yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Customers Tab -->
+            <div class="tab-pane fade" id="customers" role="tabpanel" aria-labelledby="customers-tab">
+                <div class="row align-items-start">
+                    <div class="col-md-8">
+                        <table class="table table-hover table-premium">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Partner Organization</th>
+                                    <th>Point of Contact</th>
+                                    <th>Email Address</th>
+                                    <th>Mobile Number</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for customer in customers %}
+                                <tr>
+                                    <td>{{ customer.id }}</td>
+                                    <td class="fw-bold">{{ customer.partner_organization }}</td>
+                                    <td>{{ customer.point_of_contact or '-' }}</td>
+                                    <td>{{ customer.email or '-' }}</td>
+                                    <td>{{ customer.mobile_number or '-' }}</td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="openEditCustomerModal({{ customer.id }}, '{{ customer.partner_organization|replace('\'', '\\\'') }}', '{{ customer.point_of_contact|replace('\'', '\\\'') if customer.point_of_contact else '' }}', '{{ customer.email|replace('\'', '\\\'') if customer.email else '' }}', '{{ customer.mobile_number|replace('\'', '\\\'') if customer.mobile_number else '' }}')"><i class="bi bi-pencil"></i></button>
+                                        <form action="{{ url_for('settings.delete_customer', id=customer.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this customer?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-muted text-center py-3">No customers configured.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="settings-form-card">
+                            <div class="card-body">
+                                <h5>Add New Customer</h5>
+                                <form action="{{ url_for('settings.add_customer') }}" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Partner Organization *</label>
+                                        <input type="text" name="partner_organization" class="form-control form-control-sm" required>
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Point of Contact</label>
+                                        <input type="text" name="point_of_contact" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label small fw-bold">Email Address</label>
+                                        <input type="email" name="email" class="form-control form-control-sm">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label small fw-bold">Mobile Number</label>
+                                        <input type="text" name="mobile_number" class="form-control form-control-sm">
+                                    </div>
+                                    <button class="btn btn-sm btn-primary w-100"><i class="bi bi-plus"></i> Add Customer</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
+<!-- Edit WO Status Modal -->
+<div class="modal fade" id="editWOStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editWOStatusForm" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Work Order Status</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Status Name *</label>
+                        <input type="text" name="name" id="editWOStatusName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">State Type</label>
+                        <select name="state_type" id="editWOStatusStateType" class="form-select">
+                            <option value="Open">Open</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Closed">Closed</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" id="editWOStatusDescription" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit HD Module Modal -->
+<div class="modal fade" id="editHDModuleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editHDModuleForm" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Helpdesk Module</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Module Name</label>
+                        <input type="text" name="name" id="editHDModuleName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assigned Site</label>
+                        <select name="site_id" id="editHDModuleSite" class="form-select" required>
+                            <option value="">-- Select Site --</option>
+                            {% for site in sites %}
+                            <option value="{{ site.id }}">{{ site.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Customer Modal -->
+<div class="modal fade" id="editCustomerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editCustomerForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Customer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Partner Organization</label>
+                        <input type="text" name="partner_organization" id="editCustomerPartnerOrg" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Point of Contact</label>
+                        <input type="text" name="point_of_contact" id="editCustomerContact" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" name="email" id="editCustomerEmail" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Mobile Number</label>
+                        <input type="text" name="mobile_number" id="editCustomerMobile" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit HD Location Modal -->
+<div class="modal fade" id="editHDLocationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="editHDLocationForm" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Helpdesk Location</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Location Name</label>
+                        <input type="text" name="name" id="editHDLocationName" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Assigned Site</label>
+                        <select name="site_id" id="editHDLocationSite" class="form-select" required>
+                            <option value="">-- Select Site --</option>
+                            {% for site in sites %}
+                            <option value="{{ site.id }}">{{ site.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Import HD Modules Modal -->
+<div class="modal fade" id="importHDModulesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('settings.import_hd_modules') }}" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-upload text-info me-2"></i>Import HD Modules</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">
+                        <i class="bi bi-info-circle me-1"></i> Use headers: <strong>Module Name</strong>, <strong>Site Name</strong>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Choose CSV File</label>
+                        <input type="file" name="file" class="form-control" accept=".csv" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Start Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Import HD Locations Modal -->
+<div class="modal fade" id="importHDLocationsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('settings.import_hd_locations') }}" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-upload text-info me-2"></i>Import HD Locations</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">
+                        <i class="bi bi-info-circle me-1"></i> Use headers: <strong>Location Name</strong>, <strong>Site Name</strong>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Choose CSV File</label>
+                        <input type="file" name="file" class="form-control" accept=".csv" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Start Import</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openEditHDModuleModal(id, name, site_id) {
+        document.getElementById('editHDModuleForm').action = "/settings/helpdesk_module/" + id + "/edit";
+        document.getElementById('editHDModuleName').value = name;
+        document.getElementById('editHDModuleSite').value = site_id || "";
+        new bootstrap.Modal(document.getElementById('editHDModuleModal')).show();
+    }
+    
+    function openEditWOStatusModal(id, name, state_type, description) {
+        document.getElementById('editWOStatusForm').action = "/settings/wo_status/" + id + "/edit";
+        document.getElementById('editWOStatusName').value = name;
+        document.getElementById('editWOStatusStateType').value = state_type;
+        document.getElementById('editWOStatusDescription').value = description || "";
+        
+        const isSystemStatus = ['Open', 'Completed', 'Closed'].includes(name);
+        document.getElementById('editWOStatusName').readOnly = isSystemStatus;
+        
+        new bootstrap.Modal(document.getElementById('editWOStatusModal')).show();
+    }
+
+    function openEditHDLocationModal(id, name, site_id) {
+        document.getElementById('editHDLocationForm').action = "/settings/helpdesk_location/" + id + "/edit";
+        document.getElementById('editHDLocationName').value = name;
+        document.getElementById('editHDLocationSite').value = site_id || "";
+        new bootstrap.Modal(document.getElementById('editHDLocationModal')).show();
+    }
+    
+    function openEditCustomerModal(id, partner_org, contact, email, mobile) {
+        document.getElementById('editCustomerPartnerOrg').value = partner_org || "";
+        document.getElementById('editCustomerContact').value = contact || "";
+        document.getElementById('editCustomerEmail').value = email || "";
+        document.getElementById('editCustomerMobile').value = mobile || "";
+        document.getElementById('editCustomerForm').action = "/settings/customer/edit/" + id;
+        new bootstrap.Modal(document.getElementById('editCustomerModal')).show();
+    }
+</script>
+
+<!-- Import Tasklists Modal -->
+<div class="modal fade" id="importTasklistsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import Tasklists</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{{ url_for('settings.import_tasklists') }}" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <p class="small text-muted mb-0">Upload an Excel file (.xlsx) containing Tasklists. The Excel file must have the following exact headers:</p>
+                <a href="{{ url_for('settings.download_tasklist_template') }}" class="btn btn-sm btn-outline-info"><i class="bi bi-file-earmark-excel"></i> Download Template</a>
+            </div>
+            <pre class="bg-light p-2 small border">Name,Project Code,Task/Step Name,Task/Attachment?,Task/Duration (Minutes)</pre>
+            <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Import Excel</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Import Checklists Modal -->
+<div class="modal fade" id="importChecklistsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import Checklists</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{{ url_for('settings.import_checklists') }}" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <p class="small text-muted mb-0">Upload an Excel file (.xlsx) containing Checklist Parameters. The Excel file must have the following exact headers:</p>
+                <a href="{{ url_for('settings.download_checklist_template') }}" class="btn btn-sm btn-outline-info"><i class="bi bi-file-earmark-excel"></i> Download Template</a>
+            </div>
+            <pre class="bg-light p-2 small border">Checklist Name,Project Code,Parameter,Standard</pre>
+            <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Import Excel</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Import Users Modal -->
+<div class="modal fade" id="importUsersModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import Users</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form action="{{ url_for('settings.import_users') }}" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+            <p class="small text-muted">Upload an Excel (.xlsx) file containing user data. The Excel file must have the following exact headers:</p>
+            <pre class="bg-light p-2 small border">NRP, Name, Role, Site, Password</pre>
+            <input type="file" name="file" class="form-control" accept=".xlsx" required>
+            <div class="form-text mt-2" style="font-size: 0.75rem;">
+                <strong>Role options:</strong> Admin, Supervisor, Technician, User<br>
+                <strong>Site:</strong> Use exact Site name (or leave empty for 'Kantor'/All Sites)<br>
+                <em>Tip: You can download the template using the button above.</em>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary btn" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Import Excel</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Safe Ranges Modal -->
+<div class="modal fade" id="safeRangesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Configure Safe Ranges - <span id="srSiteName"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="safeRangesForm" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+              <p class="small text-muted mb-2">Define minimum and maximum acceptable values for specific telemetry parameters. Values outside this range will turn RED on the dashboard.</p>
+              
+              <datalist id="telemetryKeysList"></datalist>
+              <div id="srLoadingMsg" class="small text-info mb-3" style="display:none;"><i class="bi bi-arrow-repeat spin"></i> Auto-fetching parameter keys from active chiller...</div>
+              
+              <div class="table-responsive">
+                  <table class="table table-sm table-bordered">
+                      <thead class="bg-light">
+                          <tr>
+                              <th>Parameter Key (e.g. chilled_water_leaving_temp)</th>
+                              <th style="width:120px">Min Value</th>
+                              <th style="width:120px">Max Value</th>
+                          </tr>
+                      </thead>
+                      <tbody id="srTableBody">
+                          <!-- Rows injected by JS -->
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+          <div class="modal-footer">
+            <a href="#" id="exportSafeRangesBtn" class="btn btn-outline-info btn-sm me-auto"><i class="bi bi-file-earmark-excel"></i> Export CSV</a>
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-save"></i> Save Ranges</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editUserForm" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+            <div class="mb-2">
+                <label class="form-label small fw-bold">Nama Lengkap *</label>
+                <input type="text" name="name" id="editUserName" class="form-control form-control-sm" required>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-bold">NRP *</label>
+                <input type="text" name="nrp" id="editUserNrp" class="form-control form-control-sm" required>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-bold">Password Baru (Opsional)</label>
+                <input type="password" name="password" class="form-control form-control-sm" placeholder="Kosongkan jika tidak ingin mengubah password">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Role *</label>
+                <select class="form-select form-select-sm" name="role" id="editUserRole" required>
+                    <option value="Technician">Technician</option>
+                    <option value="User">User</option>
+                    <option value="Supervisor">Supervisor</option>
+                    <option value="Manager">Manager</option>
+                    <option value="Admin">Admin</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Assigned Site (or Team)</label>
+                <select class="form-select form-select-sm" name="site_id" id="editUserSite">
+                    <option value="0">-- Kantor Pusat / All Sites --</option>
+                    {% for site in sites %}
+                    <option value="{{ site.id }}">{{ site.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Team <small class="text-muted fw-normal">(Optional)</small></label>
+                <select class="form-select form-select-sm" name="team_id" id="editUserTeam">
+                    <option value="0">-- No Team --</option>
+                    {% for site in sites %}
+                        {% if site.teams.count() > 0 %}
+                        <optgroup label="{{ site.name }}">
+                            {% for team in site.teams %}
+                            <option value="{{ team.id }}">{{ team.name }}</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">No WhatsApp <small class="text-muted fw-normal">(Format: 628...)</small></label>
+                <input type="text" name="phone_number" id="editUserPhone" class="form-control form-control-sm" placeholder="628123456789">
+            </div>
+            <div class="mb-3 form-check form-switch">
+                <input class="form-check-input" type="checkbox" role="switch" name="is_approved" id="editUserIsApproved">
+                <label class="form-check-label small fw-bold" for="editUserIsApproved">Account Approved (Bisa Login)</label>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function openEditUserModal(id, name, nrp, role, site_id, team_id, phone_number, is_approved) {
+    document.getElementById('editUserForm').action = "{{ url_for('settings.index') }}".replace(/\/$/, '') + '/user/' + id + '/edit';
+    document.getElementById('editUserName').value = name;
+    document.getElementById('editUserNrp').value = nrp;
+    document.getElementById('editUserRole').value = role;
+    document.getElementById('editUserSite').value = site_id;
+    document.getElementById('editUserTeam').value = team_id || "0";
+    document.getElementById('editUserPhone').value = phone_number || "";
+    document.getElementById('editUserIsApproved').checked = (is_approved === 'True');
+    new bootstrap.Modal(document.getElementById('editUserModal')).show();
+}
+
+const allUsersData = [
+  {% for u in users %}
+  { id: "{{ u.id }}", name: "{{ u.name|replace('\"', '\\\"') }}", nrp: "{{ u.nrp|replace('\"', '\\\"') }}", site_id: "{{ u.site_id or '' }}" }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+
+let currentTeamMembers = [];
+
+function updateTeamMemberSelectOptions() {
+    const selectedSiteId = document.getElementById('editTeamSite').value;
+    const select = document.getElementById('teamMemberSelect');
+    if(!select) return; // if it doesn't exist yet
+    
+    select.innerHTML = '<option value="">Select a User to Add...</option>';
+    
+    allUsersData.forEach(u => {
+        // Hanya munculkan user yang berada di site yang sama, atau belum ada site
+        if (selectedSiteId && u.site_id !== selectedSiteId && u.site_id !== "") {
+            return;
+        }
+        // Jangan munculkan di pilihan jika user sudah ada di tim ini
+        if (currentTeamMembers.includes(String(u.id))) {
+            return;
+        }
+        select.innerHTML += `<option value="${u.id}">${u.name} (${u.nrp})</option>`;
+    });
+}
+
+// Event listener for site change
+document.getElementById('editTeamSite')?.addEventListener('change', updateTeamMemberSelectOptions);
+
+function renderTeamMembers() {
+    const list = document.getElementById('editTeamMembersList');
+    list.innerHTML = '';
+    
+    if (currentTeamMembers.length === 0) {
+        list.innerHTML = '<li class="list-group-item text-center text-muted small border-0 bg-transparent py-3">No members added yet</li>';
+        return;
+    }
+    
+    currentTeamMembers.forEach((memberId) => {
+        const u = allUsersData.find(x => String(x.id) === String(memberId));
+        if (!u) return;
+        
+        const li = document.createElement('li');
+        li.className = "list-group-item d-flex justify-content-between align-items-center bg-white border mb-1 rounded shadow-sm p-2";
+        
+        li.innerHTML = `
+            <div>
+                <i class="bi bi-person-fill text-secondary me-2"></i>
+                <span class="fw-bold" style="font-size: 0.9rem;">${u.name}</span>
+                <small class="text-muted ms-1">(${u.nrp})</small>
+                <input type="hidden" name="user_ids" value="${u.id}">
+            </div>
+            <button type="button" class="btn btn-sm text-danger border-0 bg-transparent p-0 ms-2" onclick="removeTeamMember('${u.id}')"><i class="bi bi-x-circle fs-5"></i></button>
+        `;
+        list.appendChild(li);
+    });
+    
+    // Update options as well so the assigned member is removed from dropdown
+    updateTeamMemberSelectOptions();
+}
+
+function addTeamMemberFromSelect() {
+    const select = document.getElementById('teamMemberSelect');
+    const val = select.value;
+    if (!val) return;
+    
+    if (!currentTeamMembers.includes(String(val))) {
+        currentTeamMembers.push(String(val));
+        renderTeamMembers();
+    }
+}
+
+function removeTeamMember(id) {
+    currentTeamMembers = currentTeamMembers.filter(x => String(x) !== String(id));
+    renderTeamMembers();
+}
+
+function openAddTeamModal() {
+    document.getElementById('editTeamForm').action = "/settings/team/add";
+    document.getElementById('editTeamName').value = "";
+    document.getElementById('editTeamSite').value = "";
+    document.getElementById('editTeamDescription').value = "";
+    
+    document.querySelector('#editTeamModal .modal-title').innerHTML = '<i class="bi bi-diagram-3 text-primary me-2"></i>Add Team';
+    currentTeamMembers = [];
+    updateTeamMemberSelectOptions();
+    renderTeamMembers();
+    new bootstrap.Modal(document.getElementById('editTeamModal')).show();
+}
+
+function openEditTeamModal(id, name, site_id, description, user_ids) {
+    document.getElementById('editTeamForm').action = "/settings/team/" + id + "/edit";
+    document.getElementById('editTeamName').value = name;
+    document.getElementById('editTeamSite').value = site_id;
+    document.getElementById('editTeamDescription').value = description;
+    
+    document.querySelector('#editTeamModal .modal-title').innerHTML = '<i class="bi bi-diagram-3 text-primary me-2"></i>Edit Team';
+    currentTeamMembers = user_ids.map(String) || [];
+    updateTeamMemberSelectOptions();
+    renderTeamMembers();
+    new bootstrap.Modal(document.getElementById('editTeamModal')).show();
+}
+</script>
+
+<!-- Edit Team Modal -->
+<div class="modal fade" id="editTeamModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content form-glass">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-diagram-3 text-primary me-2"></i>Edit Team</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editTeamForm" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+            <div class="mb-2">
+                <label class="form-label small fw-bold">Team Name *</label>
+                <input type="text" name="name" id="editTeamName" class="form-control form-control-sm" required>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-bold">Site *</label>
+                <select class="form-select form-select-sm" name="site_id" id="editTeamSite" required>
+                    <option value="">Select a Site...</option>
+                    {% for site in sites %}
+                    <option value="{{ site.id }}">{{ site.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-bold">Description</label>
+                <textarea name="description" id="editTeamDescription" class="form-control form-control-sm" rows="2"></textarea>
+            </div>
+            
+            <hr class="text-muted">
+            <label class="form-label small fw-bold mb-0">Members</label>
+            <div class="d-flex justify-content-between align-items-center mb-2 mt-1">
+                <select id="teamMemberSelect" class="form-select form-select-sm me-2">
+                    <option value="">Select a User to Add...</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}">{{ user.name }} ({{ user.nrp }})</option>
+                    {% endfor %}
+                </select>
+                <button type="button" class="btn btn-sm btn-primary text-nowrap" onclick="addTeamMemberFromSelect()"><i class="bi bi-plus"></i> Add</button>
+            </div>
+            <ul id="editTeamMembersList" class="list-group list-group-flush mb-2 border rounded p-1 bg-light" style="min-height: 50px;"></ul>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- Edit Site Modal -->
+<div class="modal fade" id="editSiteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Site</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editSiteForm" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+            <div class="mb-2">
+                <label class="form-label small fw-bold">Site Name *</label>
+                <input type="text" name="name" id="editSiteName" class="form-control form-control-sm" required>
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-bold">Address</label>
+                <input type="text" name="address" id="editSiteAddress" class="form-control form-control-sm">
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-bold">Timezone</label>
+                <input type="text" name="timezone" id="editSiteTimezone" class="form-control form-control-sm">
+            </div>
+            <div class="mb-2">
+                <label class="form-label small fw-bold">Project Code</label>
+                <select name="project_code" id="editSiteProjectCode" class="form-select form-select-sm">
+                    <option value="">-- No Project Code (General) --</option>
+                    {% for proj in project_codes %}
+                    <option value="{{ proj.code }}">{{ proj.code }} - {{ proj.description or 'No desc' }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">API Site ID</label>
+                <input type="text" name="api_site_id" id="editSiteApiId" class="form-control form-control-sm">
+                <div class="form-text" style="font-size: 0.7rem;">Optional mapping ID for IoT Monitoring dashboards to pull data for this site (e.g. 'btpn').</div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+function openEditSiteModal(id, name, address, timezone, api_site_id, projectCode) {
+    document.getElementById('editSiteForm').action = "/settings/site/" + id + "/edit";
+    document.getElementById('editSiteName').value = name;
+    document.getElementById('editSiteAddress').value = address;
+    document.getElementById('editSiteTimezone').value = timezone;
+    document.getElementById('editSiteApiId').value = api_site_id;
+    document.getElementById('editSiteProjectCode').value = projectCode || '';
+    new bootstrap.Modal(document.getElementById('editSiteModal')).show();
+}
+
+const siteSafeRanges = {
+    {% for site in sites %}
+    "{{ site.id }}": [
+        {% for r in site.safe_ranges %}
+        {key: "{{ r.parameter_key }}", min: "{{ r.min_value if r.min_value is not none else '' }}", max: "{{ r.max_value if r.max_value is not none else '' }}"},
+        {% endfor %}
+    ],
+    {% endfor %}
+};
+
+let globalDynamicKeys = [];
+
+async function openSafeRangesModal(id, name, apiSiteId) {
+    document.getElementById('srSiteName').innerText = name;
+    document.getElementById('safeRangesForm').action = "/settings/site/" + id + "/safe_ranges/save";
+    document.getElementById('exportSafeRangesBtn').href = "/settings/site/" + id + "/safe_ranges/export";
+    
+    let tbody = document.getElementById('srTableBody');
+    tbody.innerHTML = '';
+    globalDynamicKeys = [];
+    
+    let ranges = siteSafeRanges[id] || [];
+    
+    if (apiSiteId) {
+        document.getElementById('srLoadingMsg').style.display = 'block';
+        try {
+            let res = await fetch(`/monitoring/api_proxy/chillers`);
+            let chillers = await res.json();
+            let siteChillers = chillers.filter(c => String(c.site_id) === String(apiSiteId));
+            if (siteChillers.length > 0) {
+                let latestRes = await fetch(`/monitoring/api_proxy/chillers/${siteChillers[0].id}/latest_data`);
+                let data = await latestRes.json();
+                let keys = Object.keys(data);
+                keys.forEach(k => {
+                    if (k === 'id' || k === 'chiller_id' || k === 'timestamp' || k === 'date' || k === 'time' || k === 'status' || k === 'image_name') return;
+                    globalDynamicKeys.push(k);
+                });
+            }
+        } catch(e) {
+            console.error("Failed to fetch dynamic keys:", e);
+        } finally {
+            document.getElementById('srLoadingMsg').style.display = 'none';
+        }
+    } else {
+        document.getElementById('srLoadingMsg').style.display = 'none';
+    }
+    
+    // Gather all keys (Auto-detected + previously saved) so we can render them straight away
+    let combinedKeys = new Set([...globalDynamicKeys]);
+    ranges.forEach(r => combinedKeys.add(r.key));
+    
+    if (combinedKeys.size === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted py-4"><i class="bi bi-exclamation-triangle mt-3 d-block text-warning fs-3"></i>Data tidak ditemukan. Pastikan API Site ID sudah dikonfigurasi.</td></tr>';
+    } else {
+        Array.from(combinedKeys).sort().forEach(key => {
+            let existing = ranges.find(r => r.key === key);
+            addSafeRangeRow(key, existing ? existing.min : '', existing ? existing.max : '');
+        });
+    }
+    
+    new bootstrap.Modal(document.getElementById('safeRangesModal')).show();
+}
+
+function addSafeRangeRow(key, min, max) {
+    let tbody = document.getElementById('srTableBody');
+    let tr = document.createElement('tr');
+    
+    tr.innerHTML = `
+        <td class="align-middle text-dark fw-semibold font-monospace" style="font-size:0.85rem;">
+            <input type="hidden" name="param_key[]" value="${key}">
+            ${key}
+        </td>
+        <td><input type="number" step="0.01" name="min_val[]" class="form-control form-control-sm" value="${min}" placeholder="Limit Bawah"></td>
+        <td><input type="number" step="0.01" name="max_val[]" class="form-control form-control-sm" value="${max}" placeholder="Limit Atas"></td>
+    `;
+    tbody.appendChild(tr);
+}
+</script>
+
+<!-- Edit Tasklist Modal -->
+<div class="modal fade" id="editTasklistModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content form-glass">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-ui-checks text-primary me-2"></i>Edit Tasklist & Procedures</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editTasklistForm" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+            <div class="row">
+              <div class="col-md-6 mb-2">
+                  <label class="form-label small fw-bold">Tasklist Name *</label>
+                  <input type="text" name="name" id="editTasklistName" class="form-control form-control-sm" required>
+              </div>
+              <div class="col-md-6 mb-2">
+                  <label class="form-label small fw-bold">Project Code</label>
+                  <select name="project_code" id="editTasklistProjectCode" class="form-select form-select-sm">
+                      <option value="">-- No Project Code (General) --</option>
+                      {% for proj in project_codes %}
+                      <option value="{{ proj.code }}">{{ proj.code }} - {{ proj.description or 'No desc' }}</option>
+                      {% endfor %}
+                  </select>
+              </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Description</label>
+                <textarea name="description" id="editTasklistDescription" class="form-control form-control-sm" rows="2"></textarea>
+            </div>
+            
+            <hr class="text-muted">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label small fw-bold mb-0">Procedures</label>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addProcedureBtn"><i class="bi bi-plus"></i> Add Procedure</button>
+            </div>
+            <p class="text-muted small mb-2"><i class="bi bi-info-circle"></i> Drag and drop the handles (<i class="bi bi-grip-vertical"></i>) to reorder procedures.</p>
+            <ul id="editTasklistProcedures" class="list-group list-group-flush mb-2 border rounded p-1 bg-light" style="min-height: 50px;"></ul>
+            <input type="hidden" name="procedures_json" id="editTasklistProceduresJson">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Checklist Modal -->
+<div class="modal fade" id="editChecklistModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content form-glass">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-list-check text-warning me-2"></i>Edit Checklist & Parameters</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editChecklistForm" method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+            <div class="row">
+              <div class="col-md-6 mb-2">
+                  <label class="form-label small fw-bold">Checklist Name *</label>
+                  <input type="text" name="name" id="editChecklistName" class="form-control form-control-sm" required>
+              </div>
+              <div class="col-md-6 mb-2">
+                  <label class="form-label small fw-bold">Project Code</label>
+                  <select name="project_code" id="editChecklistProjectCode" class="form-select form-select-sm">
+                      <option value="">-- No Project Code (General) --</option>
+                      {% for proj in project_codes %}
+                      <option value="{{ proj.code }}">{{ proj.code }} - {{ proj.description or 'No desc' }}</option>
+                      {% endfor %}
+                  </select>
+              </div>
+            </div>
+            
+            <hr class="text-muted">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label small fw-bold mb-0">Parameters</label>
+                <button type="button" class="btn btn-sm btn-outline-warning" id="addParameterBtn"><i class="bi bi-plus"></i> Add Parameter</button>
+            </div>
+            <p class="text-muted small mb-2"><i class="bi bi-info-circle"></i> Drag and drop the handles (<i class="bi bi-grip-vertical"></i>) to reorder parameters.</p>
+            <ul id="editChecklistParameters" class="list-group list-group-flush mb-2 border rounded p-1 bg-light" style="min-height: 50px;"></ul>
+            <input type="hidden" name="parameters_json" id="editChecklistParametersJson">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-warning text-dark fw-bold">Save Changes</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div><!-- Edit Logsheet Template Modal -->
+<div class="modal fade" id="editLogsheetTemplateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content form-glass">
+      <div class="modal-header">
+        <h5 class="modal-title fw-bold"><i class="bi bi-journal-check text-primary me-2"></i>Edit Logsheet Template</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="editLogsheetTemplateForm" method="POST">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+          <div class="modal-body">
+            <div class="row">
+              <div class="col-md-12 mb-2">
+                  <label class="form-label small fw-bold">Template Name *</label>
+                  <input type="text" name="name" id="editLogsheetTemplateName" class="form-control form-control-sm" required>
+              </div>
+            </div>
+            
+            <hr class="text-muted">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label small fw-bold mb-0">Parameters</label>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addLTParameterBtn"><i class="bi bi-plus"></i> Add Parameter</button>
+            </div>
+            <p class="text-muted small mb-2"><i class="bi bi-info-circle"></i> Drag and drop the handles (<i class="bi bi-grip-vertical"></i>) to reorder parameters.</p>
+            <ul id="editLogsheetTemplateParameters" class="list-group list-group-flush mb-2 border rounded p-1 bg-light" style="min-height: 50px;"></ul>
+            <input type="hidden" name="parameters_json" id="editLogsheetTemplateParametersJson">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn btn-primary text-white fw-bold">Save Changes</button>
+          </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Import Parts Modal -->
+<div class="modal fade" id="importPartsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('settings.import_parts') }}" method="POST" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-upload text-info me-2"></i>Import Master Parts</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info py-2 small">
+                        <i class="bi bi-info-circle me-1"></i> Ensure your Excel file has at least: <strong>Product Code</strong>, <strong>Name</strong>. Optional columns: <strong>Category</strong>, <strong>Unit</strong>, <strong>Price</strong>, <strong>Unit Cost</strong>, <strong>Currency</strong>.<br>
+                        <i class="bi bi-check-circle me-1 text-success mt-1"></i> <strong>Note:</strong> If the Product Code already exists, its data will be <strong>updated</strong>. If it doesn't exist, a new part will be created.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Choose Excel File (.xlsx, .xls)</label>
+                        <input type="file" name="file" class="form-control" accept=".xlsx, .xls" required>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <a href="{{ url_for('settings.download_part_template') }}" class="btn btn-outline-info"><i class="bi bi-file-earmark-excel"></i> Download Template</a>
+                    <div>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Start Import</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentProcedures = [];
+let currentParameters = [];
+
+function renderProcedures() {
+    const list = document.getElementById('editTasklistProcedures');
+    list.innerHTML = '';
+    currentProcedures.forEach((proc) => {
+        const li = document.createElement('li');
+        li.className = "list-group-item d-flex justify-content-between align-items-center bg-white border mb-1 rounded shadow-sm p-2";
+        li.dataset.id = proc.id || ('new_' + Math.random().toString(36).substr(2, 9));
+        
+        li.innerHTML = `
+            <i class="bi bi-grip-vertical text-secondary me-2 fs-5" style="cursor: grab;"></i>
+            <input type="text" class="form-control form-control-sm me-3 proc-name-input" value="${proc.name || ''}" placeholder="Procedure Name" required>
+            <div class="form-check form-check-inline me-2 mb-0 text-nowrap mt-1">
+                <input class="form-check-input proc-attach-check" type="checkbox" id="attach_${li.dataset.id}" ${proc.requires_attachment ? 'checked' : ''}>
+                <label class="form-check-label small text-muted" for="attach_${li.dataset.id}"><i class="bi bi-camera"></i> Photo Req.</label>
+            </div>
+            <div class="d-flex align-items-center me-2">
+                <label class="small text-muted me-1 mb-0">Min:</label>
+                <input type="number" class="form-control form-control-sm proc-min-photos-input" style="width: 50px;" value="${proc.min_photos || 0}" min="0">
+            </div>
+            <button type="button" class="btn btn-sm text-danger border-0 bg-transparent p-0 ms-2" onclick="removeProcedure(this)"><i class="bi bi-x-circle fs-5"></i></button>
+        `;
+        list.appendChild(li);
+        
+        li.querySelector('.proc-name-input').addEventListener('input', updateProceduresJson);
+        li.querySelector('.proc-attach-check').addEventListener('change', updateProceduresJson);
+        li.querySelector('.proc-min-photos-input').addEventListener('input', updateProceduresJson);
+    });
+    updateProceduresJson();
+}
+
+function updateProceduresJson() {
+    const list = document.getElementById('editTasklistProcedures');
+    const reordered = [];
+    list.querySelectorAll('li').forEach(li => {
+        const id = li.dataset.id;
+        const name = li.querySelector('.proc-name-input').value;
+        const reqAtt = li.querySelector('.proc-attach-check').checked;
+        const minPhotos = parseInt(li.querySelector('.proc-min-photos-input').value) || 0;
+        reordered.push({ id, name, requires_attachment: reqAtt, min_photos: minPhotos });
+    });
+    const hidden = document.getElementById('editTasklistProceduresJson');
+    if(hidden) hidden.value = JSON.stringify(reordered);
+}
+
+function removeProcedure(btn) {
+    btn.closest('li').remove();
+    updateProceduresJson();
+}
+
+document.getElementById('addProcedureBtn')?.addEventListener('click', () => {
+    currentProcedures.push({ id: 'new_' + Math.random().toString(36).substr(2, 9), name: '', requires_attachment: false });
+    renderProcedures();
+});
+
+function openAddTasklistModal() {
+    document.getElementById('editTasklistForm').action = "/settings/tasklist/add";
+    document.getElementById('editTasklistName').value = "";
+    document.getElementById('editTasklistDescription').value = "";
+    document.getElementById('editTasklistProjectCode').value = "";
+    
+    // Change modal title implicitly or explicitly
+    const titleEl = document.querySelector('#editTasklistModal .modal-title');
+    if(titleEl) titleEl.innerHTML = '<i class="bi bi-ui-checks text-primary me-2"></i>Add Tasklist & Procedures';
+    
+    currentProcedures = [];
+    renderProcedures();
+    
+    new bootstrap.Modal(document.getElementById('editTasklistModal')).show();
+}
+
+function openEditTasklistModal(id, name, description, projectCode) {
+    document.getElementById('editTasklistForm').action = "/settings/tasklist/" + id + "/edit";
+    document.getElementById('editTasklistName').value = name;
+    document.getElementById('editTasklistDescription').value = description;
+    document.getElementById('editTasklistProjectCode').value = projectCode || "";
+    
+    const titleEl = document.querySelector('#editTasklistModal .modal-title');
+    if(titleEl) titleEl.innerHTML = '<i class="bi bi-ui-checks text-primary me-2"></i>Edit Tasklist & Procedures';
+    
+    document.getElementById('editTasklistProcedures').innerHTML = '<li class="list-group-item text-center text-muted border-0 bg-transparent py-2"><div class="spinner-border spinner-border-sm text-primary"></div> Loading...</li>';
+    
+    fetch('/settings/api/tasklist/' + id + '/procedures')
+    .then(r => r.json())
+    .then(data => {
+        currentProcedures = data.procedures || [];
+        renderProcedures();
+    });
+    
+    new bootstrap.Modal(document.getElementById('editTasklistModal')).show();
+}
+
+// Checklist Parameters Code
+function renderParameters() {
+    const list = document.getElementById('editChecklistParameters');
+    list.innerHTML = '';
+    currentParameters.forEach((param) => {
+        const li = document.createElement('li');
+        li.className = "list-group-item d-flex justify-content-between align-items-center bg-white border mb-1 rounded shadow-sm p-2";
+        li.dataset.id = param.id || ('new_' + Math.random().toString(36).substr(2, 9));
+        
+        li.innerHTML = `
+            <i class="bi bi-grip-vertical text-secondary me-2 fs-5" style="cursor: grab;"></i>
+            <div class="row w-100 gx-2">
+                <div class="col-7">
+                    <input type="text" class="form-control form-control-sm param-name-input w-100" value="${param.parameter || ''}" placeholder="Parameter Name" title="Parameter Name" required>
+                </div>
+                <div class="col-5">
+                    <input type="text" class="form-control form-control-sm param-std-input w-100" value="${param.standard || ''}" placeholder="Standard (eg 10 - 15A)" title="Standard Value" required>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm text-danger border-0 bg-transparent p-0 ms-2" onclick="removeParameter(this)"><i class="bi bi-x-circle fs-5"></i></button>
+        `;
+        list.appendChild(li);
+        
+        li.querySelector('.param-name-input').addEventListener('input', updateParametersJson);
+        li.querySelector('.param-std-input').addEventListener('input', updateParametersJson);
+    });
+    updateParametersJson();
+}
+
+function updateParametersJson() {
+    const list = document.getElementById('editChecklistParameters');
+    const reordered = [];
+    list.querySelectorAll('li').forEach(li => {
+        const id = li.dataset.id;
+        const parameter = li.querySelector('.param-name-input').value;
+        const standard = li.querySelector('.param-std-input').value;
+        reordered.push({ id, parameter, standard });
+    });
+    const hidden = document.getElementById('editChecklistParametersJson');
+    if(hidden) hidden.value = JSON.stringify(reordered);
+}
+
+function removeParameter(btn) {
+    btn.closest('li').remove();
+    updateParametersJson();
+}
+
+document.getElementById('addParameterBtn')?.addEventListener('click', () => {
+    currentParameters.push({ id: 'new_' + Math.random().toString(36).substr(2, 9), parameter: '', standard: '' });
+    renderParameters();
+});
+
+function openAddChecklistModal() {
+    document.getElementById('editChecklistForm').action = "/settings/checklist/add";
+    document.getElementById('editChecklistName').value = "";
+    document.getElementById('editChecklistProjectCode').value = "";
+    
+    const titleEl = document.querySelector('#editChecklistModal .modal-title');
+    if(titleEl) titleEl.innerHTML = '<i class="bi bi-list-check text-warning me-2"></i>Add Checklist & Parameters';
+    
+    currentParameters = [];
+    renderParameters();
+    
+    new bootstrap.Modal(document.getElementById('editChecklistModal')).show();
+}
+
+function openEditChecklistModal(id, name, projectCode) {
+    document.getElementById('editChecklistForm').action = "/settings/checklist/" + id + "/edit";
+    document.getElementById('editChecklistName').value = name;
+    document.getElementById('editChecklistProjectCode').value = projectCode || "";
+    
+    const titleEl = document.querySelector('#editChecklistModal .modal-title');
+    if(titleEl) titleEl.innerHTML = '<i class="bi bi-list-check text-warning me-2"></i>Edit Checklist & Parameters';
+    
+    document.getElementById('editChecklistParameters').innerHTML = '<li class="list-group-item text-center text-muted border-0 bg-transparent py-2"><div class="spinner-border spinner-border-sm text-warning"></div> Loading...</li>';
+    
+    fetch('/settings/api/checklist/' + id + '/parameters')
+    .then(r => r.json())
+    .then(data => {
+        currentParameters = data.parameters || [];
+        renderParameters();
+    });
+    
+    new bootstrap.Modal(document.getElementById('editChecklistModal')).show();
+}
+
+// Logsheet Templates Logic
+let ltParameters = [];
+
+function openAddLogsheetTemplateModal() {
+    document.getElementById('editLogsheetTemplateForm').action = "{{ url_for('settings.add_logsheet_template') }}";
+    document.getElementById('editLogsheetTemplateName').value = '';
+    
+    ltParameters = [];
+    renderLTParameters();
+    
+    const titleEl = document.querySelector('#editLogsheetTemplateModal .modal-title');
+    if(titleEl) titleEl.innerHTML = '<i class="bi bi-journal-check text-primary me-2"></i>Add New Logsheet Template';
+    
+    new bootstrap.Modal(document.getElementById('editLogsheetTemplateModal')).show();
+}
+
+function openEditLogsheetTemplateModal(id, name, paramsJson) {
+    document.getElementById('editLogsheetTemplateForm').action = "{{ url_for('settings.edit_logsheet_template', id=0) }}".replace('0', id);
+    document.getElementById('editLogsheetTemplateName').value = name;
+    
+    const titleEl = document.querySelector('#editLogsheetTemplateModal .modal-title');
+    if(titleEl) titleEl.innerHTML = '<i class="bi bi-journal-check text-primary me-2"></i>Edit Logsheet Template';
+    
+    document.getElementById('editLogsheetTemplateParameters').innerHTML = '<li class="list-group-item text-center text-muted border-0 bg-transparent py-2"><div class="spinner-border spinner-border-sm text-primary"></div> Loading...</li>';
+    
+    fetch('/settings/api/logsheet_template/' + id + '/parameters')
+    .then(r => r.json())
+    .then(data => {
+        ltParameters = data || [];
+        renderLTParameters();
+    });
+    
+    new bootstrap.Modal(document.getElementById('editLogsheetTemplateModal')).show();
+}
+
+document.getElementById('addLTParameterBtn').addEventListener('click', function() {
+    ltParameters.push({ name: '', entry_type: 'reading', unit: '', min: '', max: '' });
+    renderLTParameters();
+});
+
+function renderLTParameters() {
+    const list = document.getElementById('editLogsheetTemplateParameters');
+    list.innerHTML = '';
+    if(ltParameters.length === 0) {
+        list.innerHTML = '<li class="list-group-item text-center text-muted border-0 bg-transparent py-3 small">No parameters added yet.</li>';
+    }
+    
+    ltParameters.forEach((param, index) => {
+        const isReading = param.entry_type === 'reading';
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex align-items-start border-0 bg-white shadow-sm mb-1 rounded';
+        li.innerHTML = `
+            <i class="bi bi-grip-vertical text-muted me-2 mt-2" style="cursor: grab;"></i>
+            <div class="flex-grow-1">
+                <div class="row g-2 mb-2">
+                    <div class="col-8">
+                        <input type="text" class="form-control form-control-sm" placeholder="Parameter Name" value="${param.name || ''}" onchange="updateLTParam(${index}, 'name', this.value)" required>
+                    </div>
+                    <div class="col-4">
+                        <select class="form-select form-select-sm" onchange="updateLTParam(${index}, 'entry_type', this.value)">
+                            <option value="reading" ${param.entry_type === 'reading' ? 'selected' : ''}>Reading</option>
+                            <option value="task" ${param.entry_type === 'task' ? 'selected' : ''}>Task</option>
+                            <option value="observation" ${param.entry_type === 'observation' ? 'selected' : ''}>Observation</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-2 param-bounds" style="display: ${isReading ? 'flex' : 'none'};">
+                    <div class="col-4">
+                        <input type="text" class="form-control form-control-sm" placeholder="Unit" value="${param.unit || ''}" onchange="updateLTParam(${index}, 'unit', this.value)">
+                    </div>
+                    <div class="col-4">
+                        <input type="number" step="any" class="form-control form-control-sm" placeholder="Min" value="${param.min || ''}" onchange="updateLTParam(${index}, 'min', this.value)">
+                    </div>
+                    <div class="col-4">
+                        <input type="number" step="any" class="form-control form-control-sm" placeholder="Max" value="${param.max || ''}" onchange="updateLTParam(${index}, 'max', this.value)">
+                    </div>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-link text-danger ms-2 p-0 mt-1" onclick="removeLTParam(${index})"><i class="bi bi-trash"></i></button>
+        `;
+        list.appendChild(li);
+    });
+    updateLTParametersJson();
+}
+
+window.updateLTParam = function(index, field, value) {
+    ltParameters[index][field] = value;
+    if (field === 'entry_type') {
+        renderLTParameters();
+    } else {
+        updateLTParametersJson();
+    }
+};
+
+window.removeLTParam = function(index) {
+    ltParameters.splice(index, 1);
+    renderLTParameters();
+};
+
+function updateLTParametersJson() {
+    document.getElementById('editLogsheetTemplateParametersJson').value = JSON.stringify(ltParameters);
+}
+
+// Initialize SortableJS
+document.addEventListener('DOMContentLoaded', function() {
+    // Tab persistence logic
+    const hash = window.location.hash;
+    if (hash) {
+        const targetTab = document.querySelector(`button[data-bs-target="${hash}"]`);
+        if (targetTab) {
+            const tab = new bootstrap.Tab(targetTab);
+            tab.show();
+        }
+    }
+
+    // Update hash on tab change
+    const tabButtons = document.querySelectorAll('button[data-bs-toggle="pill"]');
+    tabButtons.forEach(btn => {
+        btn.addEventListener('shown.bs.tab', function(event) {
+            window.location.hash = event.target.getAttribute('data-bs-target');
+        });
+    });
+
+    if (typeof Sortable !== 'undefined') {
+        const procList = document.getElementById('editTasklistProcedures');
+        if (procList) {
+            new Sortable(procList, {
+                animation: 150,
+                handle: '.bi-grip-vertical',
+                onEnd: updateProceduresJson
+            });
+        }
+        
+        const paramList = document.getElementById('editChecklistParameters');
+        if (paramList) {
+            new Sortable(paramList, {
+                animation: 150,
+                handle: '.bi-grip-vertical',
+                onEnd: updateParametersJson
+            });
+        }
+        
+        const ltParamList = document.getElementById('editLogsheetTemplateParameters');
+        if (ltParamList) {
+            new Sortable(ltParamList, {
+                animation: 150,
+                handle: '.bi-grip-vertical',
+                onEnd: function() {
+                    // Re-sync array based on DOM order
+                    const newOrder = [];
+                    ltParamList.querySelectorAll('li').forEach(li => {
+                        const nameInput = li.querySelector('input[placeholder="Parameter Name"]');
+                        if(nameInput) {
+                            const name = nameInput.value;
+                            const param = ltParameters.find(p => p.name === name);
+                            if(param) newOrder.push(param);
+                        }
+                    });
+                    ltParameters = newOrder;
+                    updateLTParametersJson();
+                }
+            });
+        }
+    } else {
+        console.warn('SortableJS not loaded.');
+    }
+});
+</script>
+
+<script>
+function toggleAllPending(source) {
+    let checkboxes = document.querySelectorAll('.pending-user-checkbox');
+    for (let i = 0; i < checkboxes.length; i++) {
+        checkboxes[i].checked = source.checked;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const navContainer = document.getElementById('navContainer');
+    const btnLeft = document.getElementById('scrollLeftBtn');
+    const btnRight = document.getElementById('scrollRightBtn');
+    
+    if (navContainer && btnLeft && btnRight) {
+        btnLeft.addEventListener('click', function() {
+            navContainer.scrollBy({ left: -300, behavior: 'smooth' });
+        });
+        btnRight.addEventListener('click', function() {
+            navContainer.scrollBy({ left: 300, behavior: 'smooth' });
+        });
+        
+        // Optional: Hide arrows if no scrolling needed, but keeping them is fine for visual balance.
+    }
+});
+</script>
+{% endblock %}

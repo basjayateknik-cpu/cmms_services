@@ -1,0 +1,452 @@
+{% extends "base.html" %}
+
+{% block toolbar_left %}
+<div class="d-flex align-items-center">
+    <h3 class="mb-0 text-dark fw-bold me-4">
+        <i class="bi bi-journal-album text-primary me-2"></i> Operasional
+    </h3>
+</div>
+{% endblock %}
+
+{% block toolbar_right %}
+    <a href="{{ url_for('logsheet_schedule_create') }}" class="btn btn-sm btn-primary fw-bold d-flex align-items-center gap-2 rounded-3 shadow-sm" style="padding: 0.4rem 1rem;">
+        <i class="bi bi-plus-lg"></i> Add Logsheet
+    </a>
+{% endblock %}
+
+{% block content %}
+<style>
+    .filter-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        margin-bottom: 0.25rem;
+    }
+    .table-logsheet th {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #475569;
+        text-transform: uppercase;
+        border-bottom: 1px solid #e2e8f0;
+        background-color: #f8fafc;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+    .table-logsheet td {
+        vertical-align: middle;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    .badge-status {
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+    .badge-pending {
+        color: #b45309;
+        background-color: #fef3c7;
+        border: 1px solid #fde68a;
+    }
+    .badge-completed {
+        color: #059669;
+        background-color: #d1fae5;
+        border: 1px solid #a7f3d0;
+    }
+    .badge-missed {
+        color: #be123c;
+        background-color: #ffe4e6;
+        border: 1px solid #fecdd3;
+    }
+    .badge-draft {
+        color: #475569;
+        background-color: #f1f5f9;
+        border: 1px solid #e2e8f0;
+    }
+    .badge-submitted {
+        color: #0284c7;
+        background-color: #e0f2fe;
+        border: 1px solid #bae6fd;
+    }
+    .btn-action {
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        padding: 0.4rem 1rem;
+    }
+    .btn-isi {
+        background-color: #2563eb;
+        color: white;
+        border: none;
+    }
+    .btn-isi:hover {
+        background-color: #1d4ed8;
+        color: white;
+    }
+    .tech-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: #e0f2fe;
+        color: #0284c7;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.65rem;
+        font-weight: 700;
+        border: 2px solid white;
+        margin-left: -10px;
+    }
+    .tech-avatar:first-child { margin-left: 0; }
+    .btn-view {
+        background-color: #f0f9ff;
+        color: #0284c7;
+        border: 1px solid #bae6fd;
+    }
+    .btn-view:hover {
+        background-color: #e0f2fe;
+        color: #0369a1;
+        border-color: #7dd3fc;
+    }
+</style>
+
+<form method="GET" action="{{ url_for('logsheet_management') }}" class="m-0 w-100">
+    <div class="card border-0 shadow-sm rounded-4 mb-4" style="border: 1px solid #f1f5f9;">
+        <div class="card-body p-4">
+            <div class="row g-4 mb-2">
+                <div class="col-md-4">
+                    <div class="filter-label" style="font-size: 0.7rem; font-weight: 700; color: #64748b;">ASSIGN TO</div>
+                    <select name="user_id" class="form-select bg-white rounded-3 mt-1" style="border: 1px solid #e2e8f0; font-size: 0.9rem;" onchange="this.form.submit()">
+                        <option value="">Semua User</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}" {% if user_id|string == user.id|string %}selected{% endif %}>{{ user.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <div class="filter-label" style="font-size: 0.7rem; font-weight: 700; color: #64748b;">SHIFT KERJA</div>
+                    <select name="shift" class="form-select bg-white rounded-3 mt-1" style="border: 1px solid #e2e8f0; font-size: 0.9rem;" onchange="this.form.submit()">
+                        <option value="">Semua Shift</option>
+                        <option value="1">Shift 1 (04:00 - 12:00)</option>
+                        <option value="2">Shift 2 (12:00 - 20:00)</option>
+                        <option value="3">Shift 3 (20:00 - 04:00)</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <div class="filter-label" style="font-size: 0.7rem; font-weight: 700; color: #64748b;">SITE / PROJECT LOCATION</div>
+                    <select name="site_id" class="form-select bg-white rounded-3 mt-1" style="border: 1px solid #e2e8f0; font-size: 0.9rem;" onchange="this.form.submit()">
+                        <option value="">Semua Site</option>
+                        {% for site in sites %}
+                        <option value="{{ site.id }}" {% if site_id|string == site.id|string %}selected{% endif %}>{{ site.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <input type="hidden" name="q" value="{{ request.args.get('q', '') }}">
+            <input type="hidden" name="status" value="{{ request.args.get('status', '') }}">
+            <button type="submit" class="d-none">Search</button>
+        </div>
+    </div>
+</form>
+
+<div class="accordion" id="accordionShift">
+    {% for shift_name in sorted_shifts %}
+    {% set shift_items = shift_groups[shift_name] %}
+    {% set shift_display = shift_name if shift_name else 'Shift' %}
+    {% set shift_short = 'S' %}
+    {% if shift_display == '1' %}
+        {% set shift_display = 'Shift 1 (04:00 - 12:00)' %}
+        {% set shift_short = 'S1' %}
+        {% set shift_color = 'primary' %}
+    {% elif shift_display == '2' %}
+        {% set shift_display = 'Shift 2 (12:00 - 20:00)' %}
+        {% set shift_short = 'S2' %}
+        {% set shift_color = 'success' %}
+    {% elif shift_display == '3' %}
+        {% set shift_display = 'Shift 3 (20:00 - 04:00)' %}
+        {% set shift_short = 'S3' %}
+        {% set shift_color = 'warning' %}
+    {% elif shift_display != 'Shift' and 'Shift' not in shift_display|string %}
+        {% set shift_display = 'Shift ' ~ shift_display %}
+        {% set shift_short = 'S' ~ shift_name %}
+        {% set shift_color = 'secondary' %}
+    {% else %}
+        {% set shift_short = 'S' %}
+        {% set shift_color = 'secondary' %}
+    {% endif %}
+    
+    <div class="card border-0 mb-4 rounded-4 shadow-sm overflow-hidden" style="border: 1px solid #e2e8f0 !important;">
+        <div class="card-header bg-light p-3 d-flex justify-content-between align-items-center border-bottom" style="border-color: #f1f5f9 !important;">
+            <div class="d-flex align-items-center gap-3" data-bs-toggle="collapse" data-bs-target="#collapse{{ loop.index }}" style="cursor: pointer; flex: 1;">
+                <div class="bg-{{ shift_color }} bg-opacity-10 text-{{ shift_color }} fw-bold rounded-3 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; font-size: 0.9rem;">
+                    {{ shift_short }}
+                </div>
+                <div>
+                    <h5 class="mb-0 fw-bold text-dark fs-6">{{ shift_display }}</h5>
+                    <div class="text-muted" style="font-size: 0.75rem;">
+                        Total Terjadwal: <span class="fw-bold" id="count-shift{{ loop.index }}">{{ shift_items|length }}</span> Aset
+                    </div>
+                </div>
+                <i class="bi bi-chevron-down text-muted ms-2 transition-transform {% if loop.index == 1 %}rotate-180{% endif %}" id="arrow{{ loop.index }}"></i>
+            </div>
+            
+
+        </div>
+
+        <div id="collapse{{ loop.index }}" class="collapse {% if loop.index == 1 %}show{% endif %}" data-bs-parent="#accordionShift">
+            <div class="card-body p-0">
+                <div class="table-responsive bg-white">
+                    <table class="table table-logsheet table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th class="text-center" width="5%" style="border-bottom: 2px solid #f1f5f9; background: #fafafa; font-size: 0.75rem; font-weight: 700;">NO</th>
+                                <th width="15%" style="border-bottom: 2px solid #f1f5f9; background: #fafafa; font-size: 0.75rem; font-weight: 700;">WAKTU</th>
+                                <th width="30%" style="border-bottom: 2px solid #f1f5f9; background: #fafafa; font-size: 0.75rem; font-weight: 700;">NAMA ASET TERJADWAL</th>
+                                <th width="20%" style="border-bottom: 2px solid #f1f5f9; background: #fafafa; font-size: 0.75rem; font-weight: 700;">TEKNISI PJ</th>
+                                <th width="15%" class="text-center" style="border-bottom: 2px solid #f1f5f9; background: #fafafa; font-size: 0.75rem; font-weight: 700;">STATUS</th>
+                                <th width="15%" class="text-end pe-4" style="border-bottom: 2px solid #f1f5f9; background: #fafafa; font-size: 0.75rem; font-weight: 700;">AKSI</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-shift{{ loop.index }}">
+                            {% for item in shift_items %}
+                            <tr style="border-bottom: 1px solid #f8fafc;" class="hover-bg-light transition-colors">
+                                <td class="text-center text-muted align-middle" style="font-size: 0.9rem; font-weight: 500;">{{ loop.index }}</td>
+                                
+                                {% if item.type == 'schedule' %}
+                                {% set sch = item.obj %}
+                                <td class="align-middle">
+                                    <div class="d-flex align-items-center">
+                                        <span class="fw-bold" style="font-size: 0.9rem; color: #2563eb;">
+                                            <i class="bi bi-clock me-1"></i> {{ sch.scheduled_time.strftime('%H:%M') if sch.scheduled_time else '00:00' }} WIB
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="align-middle py-3">
+                                    <div class="fw-bold text-dark mb-1" style="font-size: 0.95rem;">{{ sch.asset.name if sch.asset else sch.name }}</div>
+                                    <div class="text-muted" style="font-size: 0.75rem;">
+                                        ID: {{ sch.asset.asset_code if sch.asset and sch.asset.asset_code else sch.code }}
+                                    </div>
+                                </td>
+                                <td class="align-middle">
+                                    <div class="fw-bold text-secondary" style="font-size: 0.9rem;">
+                                        {% if sch.assigned_technicians %}
+                                            {{ sch.assigned_technicians[0].name }}
+                                            {% if sch.assigned_technicians|length > 1 %}
+                                                <span class="text-muted" style="font-size: 0.75rem;">(+{{ sch.assigned_technicians|length - 1 }})</span>
+                                            {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="text-center align-middle">
+                                    <span class="badge badge-status badge-pending">PENDING</span>
+                                </td>
+                                <td class="text-end pe-4 align-middle">
+                                    <div class="d-flex justify-content-end gap-2 w-100">
+                                        <a href="{{ url_for('logsheet_schedule_execute', id=sch.id) }}" class="btn btn-action btn-isi shadow-sm d-flex justify-content-center align-items-center text-decoration-none" style="flex: 1;">
+                                            Isi Logsheet
+                                        </a>
+                                        {% if current_user.role in ['Admin', 'Supervisor'] %}
+                                        <a href="{{ url_for('logsheet_schedule_edit', id=sch.id) }}" class="btn btn-sm btn-outline-primary h-100 d-flex align-items-center justify-content-center px-2" style="border-radius: 8px;" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <form method="POST" action="{{ url_for('logsheet_schedule_delete', id=sch.id) }}" class="d-inline m-0 p-0" onsubmit="return confirm('Hapus jadwal aset ini?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger h-100 d-flex align-items-center justify-content-center px-2" style="border-radius: 8px;" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                
+                                {% elif item.type == 'logsheet' %}
+                                {% set ls = item.obj %}
+                                <td class="align-middle">
+                                    <div class="d-flex align-items-center">
+                                        <span class="fw-bold" style="font-size: 0.9rem; color: #94a3b8;">
+                                            <i class="bi bi-clock me-1"></i> 
+                                            {% if ls.logsheet_schedule and ls.logsheet_schedule.scheduled_time %}
+                                                {{ ls.logsheet_schedule.scheduled_time.strftime('%H:%M') }} WIB
+                                            {% else %}
+                                                {{ ls.date.strftime('%H:%M') if ls.date else '-' }} WIB
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </td>
+                                <td class="align-middle py-3">
+                                    <div class="fw-bold text-secondary mb-1" style="font-size: 0.95rem;">
+                                        {{ ls.asset.name if ls.asset else (ls.logsheet_schedule.name if ls.logsheet_schedule else 'Logsheet Data') }}
+                                    </div>
+                                    {% if not ls.filled_by %}
+                                    <div class="text-success d-flex align-items-center gap-1 mt-1" style="font-size: 0.75rem;">
+                                        <span class="spinner-grow spinner-grow-sm bg-success" style="width: 6px; height: 6px;" role="status"></span>
+                                        Terhubung API BAS (Online)
+                                    </div>
+                                    {% else %}
+                                    <div class="text-muted d-flex align-items-center gap-1 mt-1" style="font-size: 0.75rem;">
+                                        <i class="bi bi-person-check-fill"></i>
+                                        Pengecekan Manual
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle">
+                                    <div class="fw-bold text-muted" style="font-size: 0.9rem;">
+                                        {{ ls.filled_by.name if ls.filled_by else 'System (IoT Gateway)' }}
+                                    </div>
+                                </td>
+                                <td class="text-center align-middle">
+                                    {% if not ls.filled_by %}
+                                        <span class="badge badge-status badge-completed text-success" style="background-color: #d1fae5; border-color: #6ee7b7;">AUTO SYNC</span>
+                                    {% else %}
+                                        <span class="badge badge-status badge-completed text-primary" style="background-color: #cce5ff; border-color: #b8daff;">{{ ls.status | upper }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end pe-4 align-middle">
+                                    <div class="d-flex justify-content-end gap-2 w-100">
+                                        <a href="{{ url_for('logsheet_detail', id=ls.id) }}" class="btn btn-action btn-view text-decoration-none d-flex align-items-center justify-content-center" style="flex: 1;">
+                                            View Logsheet
+                                        </a>
+                                        {% if current_user.role in ['Admin', 'Supervisor'] %}
+                                        <form method="POST" action="{{ url_for('logsheet_delete', id=ls.id) }}" class="d-inline m-0 p-0" onsubmit="return confirm('Hapus riwayat logsheet ini?');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                            <button type="submit" class="btn btn-sm btn-outline-danger h-100 d-flex align-items-center justify-content-center px-2" style="border-radius: 8px;" title="Delete">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted" style="font-style: italic; font-size: 0.9rem;">
+                                    Belum ada jadwal
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+
+
+<!-- Modal Isi Logsheet (Parameter) -->
+<div class="modal fade" id="logsheetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-dark text-white border-0 p-4">
+                <div>
+                    <h5 class="modal-title fw-bold mb-1" id="modalAssetName">Form Checklist Parameter</h5>
+                    <p class="mb-0 text-white-50" style="font-size: 0.8rem;">Teknisi Pengisi: <span id="modalTechName" class="fw-bold text-primary"></span></p>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-secondary" style="font-size: 0.85rem;">Temperature (°C)</label>
+                    <input type="number" placeholder="Standar: 10% - 85%" class="form-control rounded-3">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-bold text-secondary" style="font-size: 0.85rem;">Vibration Amplitude (mm/s)</label>
+                    <input type="number" placeholder="Maksimal: 4.5 mm/s" class="form-control rounded-3">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label fw-bold text-secondary" style="font-size: 0.85rem;">Catatan Tambahan</label>
+                    <textarea placeholder="Kondisi fisik aset aman..." rows="2" class="form-control rounded-3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-0 p-3">
+                <button type="button" class="btn btn-light border text-muted fw-bold rounded-3" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary fw-bold rounded-3 shadow-sm px-4" onclick="saveLogsheet()">Simpan Data</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    let logsheetModalInstance = null;
+
+    // Document ready
+    document.addEventListener("DOMContentLoaded", function() {
+        const siteSelect = document.getElementById('input-site-select');
+        const assetSelect = document.getElementById('input-asset-select');
+        const techSelect = document.getElementById('input-asset-tech');
+        
+        if (siteSelect) {
+            siteSelect.addEventListener('change', function() {
+                const siteId = this.value;
+                
+                // Filter Asset
+                Array.from(assetSelect.options).forEach(opt => {
+                    if(!opt.value) return; // Skip placeholder
+                    const optSiteId = opt.getAttribute('data-site-id');
+                    if(siteId === "" || optSiteId === siteId) {
+                        opt.style.display = '';
+                    } else {
+                        opt.style.display = 'none';
+                    }
+                });
+                assetSelect.value = "";
+                
+                // Filter User
+                Array.from(techSelect.options).forEach(opt => {
+                    if(!opt.value) return; // Skip placeholder
+                    const optSiteId = opt.getAttribute('data-site-id');
+                    // Include users that belong to this site or belong to no site (None/Empty)
+                    if(siteId === "" || optSiteId === siteId || optSiteId === "" || optSiteId === "None") {
+                        opt.style.display = '';
+                    } else {
+                        opt.style.display = 'none';
+                    }
+                });
+                techSelect.value = "";
+            });
+        }
+    });
+
+    // Handle collapse arrows manually
+    document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(el => {
+        el.addEventListener('click', function() {
+            const icon = this.querySelector('.bi-chevron-down');
+            if(icon) {
+                if(this.getAttribute('aria-expanded') === 'true' || this.classList.contains('collapsed')) {
+                    icon.style.transform = 'rotate(0deg)';
+                } else {
+                    icon.style.transform = 'rotate(180deg)';
+                }
+            }
+        });
+    });
+
+
+
+    function openLogsheetModal(assetName, techName) {
+        document.getElementById('modalAssetName').innerText = assetName;
+        document.getElementById('modalTechName').innerText = techName;
+        if (!logsheetModalInstance) {
+            logsheetModalInstance = new bootstrap.Modal(document.getElementById('logsheetModal'));
+        }
+        logsheetModalInstance.show();
+    }
+
+    function saveLogsheet() {
+        alert('Data parameter berhasil di-commit ke sistem!');
+        if (logsheetModalInstance) logsheetModalInstance.hide();
+    }
+
+
+</script>
+
+{% endblock %}

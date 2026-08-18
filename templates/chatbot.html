@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<style>
+    /* Hide the floating widget on the dedicated page */
+    .custom-chat-widget { display: none !important; }
+    
+    /* Sembunyikan top toolbar bawaan */
+    .top-toolbar { display: none !important; }
+    
+    /* Hilangkan padding default */
+    .content-area { padding: 0 !important; }
+    
+    .container-fluid { padding: 0 !important; }
+    
+    .dedicated-chatbot-container {
+        height: 100vh;
+        background: var(--color-surface);
+        border-radius: 0;
+        box-shadow: none;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        border: none;
+        margin-bottom: 0;
+    }
+    
+    .dc-header {
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+        padding: 20px 24px;
+        display: flex;
+        align-items: center;
+        color: white;
+    }
+    
+    .dc-header .bot-avatar {
+        width: 48px;
+        height: 48px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        margin-right: 15px;
+    }
+    
+    .dc-messages {
+        flex: 1;
+        padding: 24px;
+        overflow-y: auto;
+        background: #f8fafc;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .dc-message {
+        display: flex;
+        max-width: 75%;
+    }
+    
+    @media (max-width: 768px) {
+        .dc-message { max-width: 90%; }
+        .dedicated-chatbot-container { height: calc(100vh - 180px); }
+    }
+    
+    .dc-message.user { align-self: flex-end; }
+    .dc-message.bot { align-self: flex-start; }
+    
+    .dc-message .msg-bubble {
+        padding: 14px 20px;
+        border-radius: 18px;
+        font-size: 15px;
+        line-height: 1.5;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .dc-message.user .msg-bubble {
+        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+    
+    .dc-message.bot .msg-bubble {
+        background: white;
+        color: var(--color-text-main);
+        border-bottom-left-radius: 4px;
+        border: 1px solid var(--color-border);
+    }
+    
+    .dc-input-area {
+        padding: 20px 24px;
+        background: white;
+        border-top: 1px solid var(--color-border);
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+    
+    .dc-input-area .form-control {
+        border-radius: 24px;
+        padding: 12px 20px;
+        border: 2px solid #e2e8f0;
+        background: #f1f5f9;
+        font-size: 15px;
+        color: #1e293b;
+        transition: all 0.2s ease;
+    }
+    
+    .dc-input-area .form-control::placeholder {
+        color: #475569; /* WCAG compliant contrast for placeholder */
+    }
+    
+    .dc-input-area .form-control:focus {
+        background: white;
+        border-color: var(--color-primary);
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+    
+    .dc-input-area .btn-send {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--color-primary);
+        color: white;
+        border: none;
+        font-size: 18px;
+        transition: all 0.2s ease;
+        flex-shrink: 0;
+    }
+    
+    .dc-input-area .btn-send:hover {
+        background: var(--color-primary-hover);
+        transform: scale(1.05);
+    }
+    
+    .dc-typing .msg-bubble {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 60px;
+        height: 48px;
+        padding: 0 20px !important;
+    }
+    
+    .dc-typing i {
+        animation: typing 1.4s infinite;
+        font-size: 24px;
+        color: #475569; /* WCAG compliant contrast against white */
+        line-height: 0;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-2">
+    <div class="dedicated-chatbot-container">
+        <div class="dc-header">
+            <div class="bot-avatar"><i class="bi bi-robot"></i></div>
+            <div>
+                <h4 class="mb-1 fw-bold">Portal Engineer</h4>
+                <div style="font-size: 0.9rem; color: #f8fafc;">
+                    <i class="bi bi-circle-fill" style="font-size: 0.6rem; vertical-align: middle; margin-right: 4px; color: #10b981;"></i> Online
+                </div>
+            </div>
+        </div>
+        
+        <div id="dcMessages" class="dc-messages">
+            <div class="dc-message bot">
+                <div class="msg-bubble">Halo! Saya adalah Asisten AI untuk membantu Anda dalam sistem pengelolaan ini. Ada yang bisa saya bantu?</div>
+            </div>
+        </div>
+        
+        <div class="dc-input-area">
+            <input type="text" id="dcInput" class="form-control" placeholder="Tanyakan sesuatu..." autocomplete="off">
+            <button id="dcSendBtn" class="btn-send shadow-sm"><i class="bi bi-send-fill"></i></button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const messagesContainer = document.getElementById('dcMessages');
+        const inputBox = document.getElementById('dcInput');
+        const sendBtn = document.getElementById('dcSendBtn');
+        
+        // Session ID for n8n memory
+        const sessionId = "session_page_" + Math.random().toString(36).substring(2, 10);
+        const webhookUrl = 'https://n8n-2.weebsite.my.id/webhook/7a8fcb77-a93f-4d7f-ac44-2864a5ca47c8/chat';
+
+        function addMessage(text, sender) {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `dc-message ${sender}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'msg-bubble';
+            if (typeof marked !== 'undefined') {
+                bubble.innerHTML = marked.parse(text);
+            } else {
+                bubble.innerHTML = text.replace(/\n/g, '<br>');
+            }
+            
+            msgDiv.appendChild(bubble);
+            messagesContainer.appendChild(msgDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function sendMessage() {
+            const text = inputBox.value.trim();
+            if (!text) return;
+            
+            // Render user message
+            addMessage(text, 'user');
+            inputBox.value = '';
+            
+            // Show typing indicator
+            const typingId = 'typing-' + Date.now();
+            const typingMsg = document.createElement('div');
+            typingMsg.className = 'dc-message bot dc-typing';
+            typingMsg.id = typingId;
+            typingMsg.innerHTML = '<div class="msg-bubble"><i class="bi bi-three-dots"></i></div>';
+            messagesContainer.appendChild(typingMsg);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Fetch from webhook
+            fetch(webhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'sendMessage',
+                    sessionId: sessionId,
+                    chatInput: text
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById(typingId).remove();
+                
+                let botReply = "Maaf, tidak ada respon.";
+                if (data && data.output) {
+                    botReply = data.output;
+                } else if (data && data.text) {
+                    botReply = data.text;
+                } else if (Array.isArray(data) && data.length > 0 && data[0].output) {
+                    botReply = data[0].output;
+                } else if (typeof data === 'string') {
+                    botReply = data;
+                } else {
+                    botReply = JSON.stringify(data);
+                }
+                
+                addMessage(botReply, 'bot');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById(typingId).remove();
+                addMessage("Maaf, terjadi kesalahan jaringan saat menghubungi server n8n.", 'bot text-danger');
+            });
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        inputBox.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+        
+        // Focus input on load
+        inputBox.focus();
+    });
+</script>
+{% endblock %}
