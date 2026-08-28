@@ -54,6 +54,8 @@
 {% if wo %}
 <a href="{{ url_for('work_orders.export_pdf', id=wo.id) }}" class="btn btn-sm btn-danger shadow-sm me-2"><i
         class="bi bi-file-earmark-pdf"></i> Export PDF</a>
+<a href="{{ url_for('work_orders.export_pptx', id=wo.id) }}" class="btn btn-sm btn-warning shadow-sm me-2 text-dark"><i
+        class="bi bi-file-earmark-slides"></i> Export PPTX</a>
 {% endif %}
 {% if current_user.role != 'Technician' and (not wo or (wo and wo.current_status and wo.current_status.name == 'Draft'))
 %}

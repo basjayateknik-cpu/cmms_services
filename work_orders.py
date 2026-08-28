@@ -11,6 +11,10 @@ import io
 import tempfile
 from fpdf import FPDF
 from PIL import Image
+from pptx import Presentation
+from pptx.util import Cm, Pt
+from pptx.enum.text import PP_ALIGN
+from pptx.dml.color import RGBColor
 
 def check_wo_access(wo):
     if current_user.role == 'Technician' and current_user.id not in [a.id for a in wo.assignees]:
@@ -2299,3 +2303,404 @@ def delete_wo_checklist(id, chk_id):
     db.session.commit()
     flash('Checklist parameter deleted successfully.', 'success')
     return redirect(url_for('work_orders.edit', id=id) + '#checklist_panel')
+@login_required
+def export_pptx(id):
+    wo = WorkOrder.query.get_or_404(id)
+    if not check_wo_access(wo):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('work_orders.index'))
+        
+    prs = Presentation()
+    prs.slide_width = Cm(21.0)
+    prs.slide_height = Cm(29.7)
+    blank_layout = prs.slide_layouts[6]
+    
+    # --- Helper to format cells ---
+    def format_cell(cell, text, bold=False, size=8, align=PP_ALIGN.LEFT, fill_color=None):
+        cell.text = str(text) if text is not None else ""
+        for p in cell.text_frame.paragraphs:
+            p.font.size = Pt(size)
+            p.font.bold = bold
+            p.font.name = "Helvetica"
+            p.alignment = align
+        if fill_color:
+            cell.fill.solid()
+            cell.fill.fore_color.rgb = fill_color
+
+    def fmt_dt(dt, convert=True):
+        if dt:
+            if convert:
+                dt_wib = dt + timedelta(hours=7)
+                return dt_wib.strftime('%d-%m-%Y %H:%M')
+            return dt.strftime('%d-%m-%Y %H:%M')
+        return '-'
+
+    bg_color = RGBColor(220, 220, 220)
+    
+    # --- 0. COVER PAGE ---
+    slide = prs.slides.add_slide(blank_layout)
+    title_image_path = os.path.join(current_app.root_path, 'static', 'images', 'judul.png')
+    if os.path.exists(title_image_path):
+        slide.shapes.add_picture(title_image_path, Cm(0), Cm(0), width=prs.slide_width, height=prs.slide_height)
+        
+    site_name = wo.asset.site.name if wo.asset and getattr(wo.asset, 'site', None) else "Unknown Site"
+    wo_date = wo.suggested_start_date or wo.start_date or datetime.now()
+    month_map = {
+        1: "JANUARI", 2: "FEBRUARI", 3: "MARET", 4: "APRIL", 5: "MEI", 6: "JUNI",
+        7: "JULI", 8: "AGUSTUS", 9: "SEPTEMBER", 10: "OKTOBER", 11: "NOVEMBER", 12: "DESEMBER"
+    }
+    periode_str = f"{month_map.get(wo_date.month, '')} {wo_date.year}"
+    
+    mt_type = wo.maintenance_type.upper() if wo.maintenance_type else ""
+    if "MAINTENANCE" not in mt_type:
+        mt_type += " MAINTENANCE"
+        
+    line1 = "LAPORAN WORK ORDER"
+    line1_sub = mt_type
+    line2 = site_name.upper()
+    line3 = wo.asset.name.upper() if wo.asset else ''
+    line4 = wo.code
+    
+    txBox = slide.shapes.add_textbox(Cm(2), Cm(18), Cm(17), Cm(8))
+    tf = txBox.text_frame
+    
+    p = tf.paragraphs[0]
+    p.text = line1
+    p.font.bold = True
+    p.font.size = Pt(24)
+    p.font.name = "Helvetica"
+    
+    p = tf.add_paragraph()
+    p.text = line1_sub
+    p.font.bold = True
+    p.font.size = Pt(24)
+    p.font.name = "Helvetica"
+    
+    tf.add_paragraph() # space
+    
+    p = tf.add_paragraph()
+    p.text = line2
+    p.font.bold = True
+    p.font.size = Pt(18)
+    p.font.name = "Helvetica"
+    
+    p = tf.add_paragraph()
+    p.text = line3
+    p.font.bold = True
+    p.font.size = Pt(18)
+    p.font.name = "Helvetica"
+    
+    p = tf.add_paragraph()
+    p.text = line4
+    p.font.bold = True
+    p.font.size = Pt(18)
+    p.font.name = "Helvetica"
+    
+    # --- END COVER PAGE ---
+    
+    # --- CONTENT PAGES ---
+    def add_content_slide():
+        s = prs.slides.add_slide(blank_layout)
+        
+        # 1. NEW HEADER
+        header_shape = s.shapes.add_table(4, 4, Cm(1), Cm(1), Cm(19), Cm(2.4))
+        ht = header_shape.table
+        ht.columns[0].width = Cm(3.5)
+        ht.columns[1].width = Cm(10.5)
+        ht.columns[2].width = Cm(2.0)
+        ht.columns[3].width = Cm(3.0)
+        
+        ht.cell(0,0).merge(ht.cell(3,0))
+        ht.cell(0,1).merge(ht.cell(3,1))
+        
+        logo_path = os.path.join(current_app.root_path, 'static', 'images', 'Logo Jaya Teknik.png')
+        if os.path.exists(logo_path):
+            s.shapes.add_picture(logo_path, Cm(1.2), Cm(1.2), width=Cm(3.1))
+            
+        format_cell(ht.cell(0,1), "REPORT WORK ORDER", bold=True, size=14, align=PP_ALIGN.CENTER)
+        
+        format_cell(ht.cell(0,2), "No.Dok")
+        format_cell(ht.cell(0,3), "RP - JT - 26")
+        format_cell(ht.cell(1,2), "Ref.")
+        format_cell(ht.cell(1,3), "7; 7.1.3 & 7.1.4")
+        format_cell(ht.cell(2,2), "Rev.")
+        format_cell(ht.cell(2,3), "Original")
+        format_cell(ht.cell(3,2), "Tanggal")
+        format_cell(ht.cell(3,3), datetime.now().strftime("%d %b %Y"))
+        
+        return s
+        
+    s = add_content_slide()
+    current_y = Cm(3.6)
+    
+    # Details Body
+    form_val = getattr(wo, 'maintenance_type', 'SERVICE')
+    nomor_val = wo.code or '-'
+    asset_val = f"{wo.asset.name} ({wo.asset.code})" if wo.asset else '-'
+    resp_val = ", ".join([a.name for a in wo.assignees]) if getattr(wo, 'assignees', None) else "N/A"
+    
+    proj_val = (wo.asset.project_code if wo.asset and wo.asset.project_code else wo.project_code) or '-'
+    loc_val = '-'
+    if wo.asset and hasattr(wo.asset, 'location') and wo.asset.location:
+        loc_val = wo.asset.location.name if hasattr(wo.asset.location, 'name') else str(wo.asset.location)
+        
+    sched_val = f"{fmt_dt(wo.suggested_start_date)} s/d {fmt_dt(wo.suggested_completion_date)}"
+    act_val = f"{fmt_dt(wo.start_date)} s/d {fmt_dt(wo.end_date)}"
+    
+    dt_shape = s.shapes.add_table(4, 6, Cm(1), current_y, Cm(19), Cm(2.4))
+    dt = dt_shape.table
+    dt.columns[0].width = Cm(2.5)
+    dt.columns[1].width = Cm(0.5)
+    dt.columns[2].width = Cm(6.5)
+    dt.columns[3].width = Cm(2.5)
+    dt.columns[4].width = Cm(0.5)
+    dt.columns[5].width = Cm(6.5)
+    
+    data_rows = [
+        ["Form", ":", form_val, "Project", ":", proj_val],
+        ["Nomor", ":", nomor_val, "Location", ":", loc_val],
+        ["Asset", ":", asset_val, "Schedule", ":", sched_val],
+        ["Responsible", ":", resp_val, "Actual Date", ":", act_val]
+    ]
+    for r_idx, row_data in enumerate(data_rows):
+        for c_idx, val in enumerate(row_data):
+            format_cell(dt.cell(r_idx, c_idx), val, size=9)
+            
+    current_y += Cm(2.6)
+    
+    # 1.5 TECHNICIAN
+    tech_shape = s.shapes.add_table(3, 1, Cm(1), current_y, Cm(19), Cm(1.8))
+    tech = tech_shape.table
+    format_cell(tech.cell(0,0), "TECHNICIAN", bold=True, size=10, align=PP_ALIGN.CENTER, fill_color=bg_color)
+    format_cell(tech.cell(1,0), "Name", bold=True, size=10, align=PP_ALIGN.CENTER, fill_color=bg_color)
+    format_cell(tech.cell(2,0), resp_val, size=9)
+    
+    current_y += Cm(2.2)
+    
+    # 2. CHECKING REPORT
+    chk_params = wo.checklist_parameters
+    chk_rows = len(chk_params) + 2
+    
+    # If the table is too long, we might need a new slide. For simplicity, we just put it on the current slide.
+    chk_shape = s.shapes.add_table(chk_rows, 5, Cm(1), current_y, Cm(19), Cm(0.6 * chk_rows))
+    chk = chk_shape.table
+    chk.columns[0].width = Cm(7.5)
+    chk.columns[1].width = Cm(2.5)
+    chk.columns[2].width = Cm(2.5)
+    chk.columns[3].width = Cm(2.5)
+    chk.columns[4].width = Cm(4.0)
+    
+    chk.cell(0,0).merge(chk.cell(0,4))
+    format_cell(chk.cell(0,0), "CHECKING REPORT", bold=True, size=10, align=PP_ALIGN.CENTER, fill_color=bg_color)
+    
+    headers = ["Description (Unit Check)", "Standard", "Actual", "Check", "Note"]
+    for i, h in enumerate(headers):
+        format_cell(chk.cell(1,i), h, bold=True, size=8, align=PP_ALIGN.CENTER, fill_color=bg_color)
+        
+    for r_idx, param in enumerate(chk_params):
+        desc = (param.parameter[:40] + '...') if len(param.parameter) > 42 else param.parameter
+        actual_val = str(param.value) if param.value else "-"
+        check_val = "v" if actual_val != "-" else "-"
+        note_val = str(param.note) if param.note else ""
+        
+        format_cell(chk.cell(r_idx+2, 0), desc)
+        format_cell(chk.cell(r_idx+2, 1), str(param.standard)[:15], align=PP_ALIGN.CENTER)
+        format_cell(chk.cell(r_idx+2, 2), actual_val[:15], align=PP_ALIGN.CENTER)
+        format_cell(chk.cell(r_idx+2, 3), "OK" if check_val == "v" else "-", align=PP_ALIGN.CENTER)
+        format_cell(chk.cell(r_idx+2, 4), note_val[:20])
+        
+    current_y += Cm(0.6 * chk_rows) + Cm(0.4)
+    
+    # Check if we need a new slide for Tasklist
+    if current_y > Cm(22):
+        s = add_content_slide()
+        current_y = Cm(3.6)
+        
+    # 3. TASKLIST REPORT
+    procs = wo.procedures
+    proc_rows = len(procs) + 2
+    
+    proc_shape = s.shapes.add_table(proc_rows, 3, Cm(1), current_y, Cm(19), Cm(0.6 * proc_rows))
+    proc_tbl = proc_shape.table
+    proc_tbl.columns[0].width = Cm(7.0)
+    proc_tbl.columns[1].width = Cm(9.0)
+    proc_tbl.columns[2].width = Cm(3.0)
+    
+    proc_tbl.cell(0,0).merge(proc_tbl.cell(0,2))
+    format_cell(proc_tbl.cell(0,0), "TASKLIST REPORT", bold=True, size=10, align=PP_ALIGN.CENTER, fill_color=bg_color)
+    
+    headers = ["Step Name", "Description", "State"]
+    for i, h in enumerate(headers):
+        format_cell(proc_tbl.cell(1,i), h, bold=True, size=8, align=PP_ALIGN.CENTER, fill_color=bg_color)
+        
+    for r_idx, proc in enumerate(procs):
+        step_name = proc.name or ''
+        desc = getattr(proc, 'description', '') or ''
+        state = "Done" if getattr(proc, 'is_completed', False) else "Pending"
+        
+        format_cell(proc_tbl.cell(r_idx+2, 0), step_name)
+        format_cell(proc_tbl.cell(r_idx+2, 1), desc)
+        format_cell(proc_tbl.cell(r_idx+2, 2), state, align=PP_ALIGN.CENTER)
+        
+    current_y += Cm(0.6 * proc_rows) + Cm(0.4)
+    
+    # 3.6 SIGNATURES
+    if current_y > Cm(24):
+        s = add_content_slide()
+        current_y = Cm(3.6)
+        
+    first_tech = wo.assignees[0] if getattr(wo, 'assignees', []) else None
+    tech_name = first_tech.name if first_tech else "....."
+    tech_role = first_tech.role if first_tech else "....."
+    site_name = wo.asset.site.name.upper() if wo.asset and getattr(wo.asset, 'site', None) else "....."
+    c_name_print = getattr(wo, 'customer_name', None) or "....."
+    c_title_print = getattr(wo, 'customer_title', None) or "....."
+    
+    sig_shape = s.shapes.add_table(3, 3, Cm(1.5), current_y, Cm(18), Cm(4))
+    sig = sig_shape.table
+    sig.columns[0].width = Cm(7.0)
+    sig.columns[1].width = Cm(4.0)
+    sig.columns[2].width = Cm(7.0)
+    
+    format_cell(sig.cell(0,0), "PIHAK PERTAMA,\n" + site_name, bold=True, size=9)
+    format_cell(sig.cell(0,2), "PIHAK KEDUA,\nPT JAYA TEKNIK INDONESIA", bold=True, size=9)
+    
+    # We leave cell(1,x) for signature images
+    
+    format_cell(sig.cell(2,0), f"Nama : {c_name_print}\nJabatan : {c_title_print}", size=9)
+    format_cell(sig.cell(2,2), f"Nama : {tech_name}\nJabatan : {tech_role}", size=9)
+    
+    # Add Digital Signature QR if exists
+    from models import DigitalSignature
+    ds = DigitalSignature.query.filter_by(work_order_id=wo.id).first()
+    
+    def save_temp_image(b64_str):
+        if not b64_str or ',' not in b64_str: return None
+        try:
+            _, encoded = b64_str.split(",", 1)
+            data = base64.b64decode(encoded)
+            fd, temp_path = tempfile.mkstemp(suffix='.png')
+            with os.fdopen(fd, 'wb') as f:
+                f.write(data)
+            return temp_path
+        except:
+            return None
+            
+    if ds:
+        import qrcode
+        qr = qrcode.QRCode(version=1, box_size=10, border=1)
+        verify_url = f"{request.url_root.rstrip('/')}/verify/doc?id={ds.id}"
+        qr.add_data(verify_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        fd, temp_path = tempfile.mkstemp(suffix='.png')
+        with os.fdopen(fd, 'wb') as f:
+            img.save(f)
+            
+        s.shapes.add_picture(temp_path, Cm(9), current_y + Cm(1), height=Cm(1.8))
+        os.remove(temp_path)
+        
+        format_cell(sig.cell(2,1), "DIGITALLY SIGNED\n& VERIFIED", bold=True, size=6, align=PP_ALIGN.CENTER)
+    else:
+        # Add normal signatures
+        c_img_path = save_temp_image(getattr(wo, 'customer_signature', None))
+        if c_img_path:
+            try:
+                s.shapes.add_picture(c_img_path, Cm(1.5), current_y + Cm(1.2), height=Cm(1.6))
+                os.remove(c_img_path)
+            except: pass
+            
+        t_img_path = save_temp_image(getattr(wo, 'technician_signature', None))
+        if t_img_path:
+            try:
+                s.shapes.add_picture(t_img_path, Cm(12.5), current_y + Cm(1.2), height=Cm(1.6))
+                os.remove(t_img_path)
+            except: pass
+
+    current_y += Cm(4.5)
+    
+    # 4. PHOTOS
+    images = []
+    for proc in wo.procedures:
+        if proc.attachment_path:
+            for path in proc.attachment_path.split('|'):
+                if path:
+                    images.append({"caption": f"Lampiran {proc.name[:50]}", "path": path})
+    for att in wo.attachments:
+        images.append({"caption": f"Lampiran {att.file_name}", "path": att.file_path})
+        
+    if images:
+        s = add_content_slide()
+        current_y = Cm(3.6)
+        
+        title_shape = s.shapes.add_table(1, 1, Cm(1), current_y, Cm(19), Cm(0.6))
+        format_cell(title_shape.table.cell(0,0), "LAMPIRAN FOTO", bold=True, size=10, align=PP_ALIGN.CENTER, fill_color=bg_color)
+        current_y += Cm(1.0)
+        
+        box_width = Cm(6.33)
+        box_height = Cm(9.5)
+        
+        for i in range(0, len(images), 3):
+            if current_y + box_height > Cm(28):
+                s = add_content_slide()
+                current_y = Cm(3.6)
+                
+            row_images = images[i:i+3]
+            for j, img_dict in enumerate(row_images):
+                x_pos = Cm(1) + j * box_width
+                
+                # Draw caption
+                tx = s.shapes.add_textbox(x_pos, current_y, box_width, Cm(1))
+                tf = tx.text_frame
+                tf.word_wrap = True
+                p = tf.paragraphs[0]
+                p.text = img_dict['caption']
+                p.font.size = Pt(7)
+                p.alignment = PP_ALIGN.CENTER
+                
+                # Draw image
+                full_path = os.path.join(current_app.root_path, 'static', img_dict['path'])
+                if os.path.exists(full_path):
+                    try:
+                        from PIL import Image, ImageOps
+                        with Image.open(full_path) as im:
+                            im = ImageOps.exif_transpose(im)
+                            w, h = im.size
+                            if w > h:
+                                im = im.rotate(270, expand=True)
+                                w, h = im.size
+                                
+                            target_aspect = 3/4
+                            aspect = w/h
+                            if aspect > target_aspect:
+                                new_w = int(h * target_aspect)
+                                left = (w - new_w) / 2
+                                im = im.crop((left, 0, left + new_w, h))
+                            else:
+                                new_h = int(w / target_aspect)
+                                top = (h - new_h) / 2
+                                im = im.crop((0, top, w, top + new_h))
+                                
+                            im = im.resize((300, 400))
+                            
+                            tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                            if im.mode != 'RGB':
+                                im = im.convert('RGB')
+                            im.save(tmp.name, 'JPEG')
+                            tmp.close()
+                            
+                            s.shapes.add_picture(tmp.name, x_pos + Cm(0.3), current_y + Cm(1.3), width=Cm(5.7))
+                            os.unlink(tmp.name)
+                    except Exception as e:
+                        print(f"Error processing image {full_path}: {e}")
+                        
+            current_y += box_height
+            
+    # Output to user
+    pptx_io = io.BytesIO()
+    prs.save(pptx_io)
+    pptx_io.seek(0)
+    
+    filename = f"WO_{wo.code}_{datetime.now().strftime('%Y%m%d')}.pptx"
+    return send_file(pptx_io, as_attachment=True, download_name=filename, mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation')
