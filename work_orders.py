@@ -255,21 +255,18 @@ def export_all():
         for p in wo.procedures:
             status = "Done" if p.is_completed else "Pending"
             procedures_list.append(f"- {p.name} ({status})")
-        procedures_text = "
-".join(procedures_list)
+        procedures_text = chr(10).join(procedures_list)
 
         checklist_list = []
         for c in wo.checklist_parameters:
             val = c.value if c.value else "N/A"
             checklist_list.append(f"- {c.parameter}: {val} (Std: {c.standard})")
-        checklist_text = "
-".join(checklist_list)
+        checklist_text = chr(10).join(checklist_list)
 
         parts_list = []
         for up in wo.used_parts:
             parts_list.append(f"- {up.part.name} (Qty: {up.quantity_used})")
-        parts_text = "
-".join(parts_list)
+        parts_text = chr(10).join(parts_list)
 
         data.append({
             'Code': wo.code,

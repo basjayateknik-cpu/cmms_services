@@ -26,7 +26,7 @@
     </div>
     <div class="d-flex gap-2">
         <button onclick="window.print()" class="btn btn-light border shadow-sm fw-bold text-secondary px-3"><i class="bi bi-printer me-1"></i> Print</button>
-        <a href="{{ url_for('reports.export_csv', report_id=report_id, start_date=start_date, end_date=end_date) }}" class="btn btn-primary shadow-sm fw-bold px-3"><i class="bi bi-download me-1"></i> Export CSV</a>
+        <a href="{{ url_for('reports.export_excel', report_id=report_id, start_date=start_date, end_date=end_date) }}" class="btn btn-primary shadow-sm fw-bold px-3"><i class="bi bi-download me-1"></i> Export Excel</a>
     </div>
 </div>
 

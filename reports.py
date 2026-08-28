@@ -266,21 +266,23 @@ def view_report(report_id):
 
 @reports_bp.route('/export/<report_id>')
 @login_required
-def export_csv(report_id):
-    start_dt = request.args.get('start_date')
-    end_dt = request.args.get('end_date')
-    site_id = request.args.get('site_id', type=int)
-    title, columns, data = get_report_data(report_id, start_dt, end_dt, site_id)
+def export_excel(report_id):
+    headers, rows = get_report_data(report_id)
+    if headers is None:
+        return "Report not found", 404
+
+    import pandas as pd
+    import io
+    from flask import send_file
     
-    si = StringIO()
-    cw = csv.writer(si)
-    cw.writerow(columns)
-    cw.writerows(data)
+    df = pd.DataFrame(rows, columns=headers)
     
-    output = make_response(si.getvalue())
-    output.headers["Content-Disposition"] = f"attachment; filename={report_id}_export.csv"
-    output.headers["Content-type"] = "text/csv"
-    return output
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False)
+    output.seek(0)
+    
+    return send_file(output, as_attachment=True, download_name=f"{report_id}_export.xlsx", mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 @reports_bp.route('/client_report')
 @login_required
