@@ -223,17 +223,14 @@ def export_all():
     assigned_filter = request.args.get('assigned_to')
     site_filter = request.args.get('site_id', type=int)
     mt_filter = request.args.get('maintenance_type')
-    format = request.args.get('format', 'excel')
     
     query = WorkOrder.query
     
-    # Site filtering
     if current_user.site_id:
         query = query.join(Asset).filter(Asset.site_id == current_user.site_id)
     elif site_filter:
         query = query.join(Asset).filter(Asset.site_id == site_filter)
     
-    # RBAC: Technicians only see their own assigned work orders (though supervisor_or_admin_required is active)
     if current_user.role == 'Technician':
         query = query.filter(WorkOrder.assignees.any(id=current_user.id))
     
@@ -254,23 +251,25 @@ def export_all():
     
     data = []
     for wo in work_orders:
-        # Detailed sub-data concatenation
         procedures_list = []
         for p in wo.procedures:
             status = "Done" if p.is_completed else "Pending"
             procedures_list.append(f"- {p.name} ({status})")
-        procedures_text = "\n".join(procedures_list)
+        procedures_text = "
+".join(procedures_list)
 
         checklist_list = []
         for c in wo.checklist_parameters:
             val = c.value if c.value else "N/A"
             checklist_list.append(f"- {c.parameter}: {val} (Std: {c.standard})")
-        checklist_text = "\n".join(checklist_list)
+        checklist_text = "
+".join(checklist_list)
 
         parts_list = []
         for up in wo.used_parts:
             parts_list.append(f"- {up.part.name} (Qty: {up.quantity_used})")
-        parts_text = "\n".join(parts_list)
+        parts_text = "
+".join(parts_list)
 
         data.append({
             'Code': wo.code,
@@ -297,17 +296,11 @@ def export_all():
         
     df = pd.DataFrame(data)
     
-    if format == 'excel':
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='Work Orders')
-        output.seek(0)
-        return send_file(output, as_attachment=True, download_name=f'work_orders_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    else:
-        output = io.StringIO()
-        df.to_csv(output, index=False)
-        output.seek(0)
-        return Response(output.getvalue(), mimetype="text/csv", headers={"Content-disposition": f"attachment; filename=work_orders_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"})
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Work Orders')
+    output.seek(0)
+    return send_file(output, as_attachment=True, download_name=f'work_orders_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx', mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 @work_orders_bp.route('/template')
 @login_required

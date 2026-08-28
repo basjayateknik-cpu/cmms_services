@@ -203,33 +203,26 @@ def save_safe_ranges(id):
 @login_required
 def export_safe_ranges(id):
     from models import Site
-    import csv
-    from flask import Response, stream_with_context
-    from io import StringIO
+    import pandas as pd
+    import io
+    from flask import send_file
     
     site = Site.query.get_or_404(id)
+    data = []
+    for r in site.safe_ranges:
+        data.append({
+            'Parameter Key': r.parameter_key,
+            'Min Value': r.min_value if r.min_value is not None else '',
+            'Max Value': r.max_value if r.max_value is not None else ''
+        })
+    df = pd.DataFrame(data, columns=['Parameter Key', 'Min Value', 'Max Value'])
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False)
+    output.seek(0)
     
-    def generate():
-        data = StringIO()
-        writer = csv.writer(data)
-        writer.writerow(['Parameter Key', 'Min Value', 'Max Value'])
-        yield data.getvalue()
-        data.seek(0)
-        data.truncate(0)
-        
-        for r in site.safe_ranges:
-            writer.writerow([
-                r.parameter_key, 
-                r.min_value if r.min_value is not None else '', 
-                r.max_value if r.max_value is not None else ''
-            ])
-            yield data.getvalue()
-            data.seek(0)
-            data.truncate(0)
-            
-    response = Response(stream_with_context(generate()), mimetype='text/csv')
-    response.headers['Content-Disposition'] = f'attachment; filename=safe_ranges_{site.name.replace(" ", "_")}.csv'
-    return response
+    filename = f'safe_ranges_{site.name.replace(" ", "_")}.xlsx'
+    return send_file(output, download_name=filename, as_attachment=True, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 @settings_bp.route('/location/add', methods=['POST'])
 @login_required
@@ -1436,30 +1429,69 @@ def delete_hd_location(id):
 
 # Helpdesk CSV Import/Export
 
+@settings_bp.route('/helpdesk_module/template', methods=['GET'])
+@login_required
+def download_hd_module_template():
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
+    import pandas as pd
+    import io
+    from flask import send_file
+    df = pd.DataFrame(columns=['Name', 'Site ID'])
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False)
+    output.seek(0)
+    return send_file(output, download_name="helpdesk_modules_template.xlsx", as_attachment=True, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 @settings_bp.route('/helpdesk_module/export', methods=['GET'])
 @login_required
 def export_hd_modules():
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Module Name', 'Site Name'])
-    
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
+    import pandas as pd
+    import io
+    from flask import send_file
+    data = []
     modules = HelpdeskModule.query.all()
     for m in modules:
-        writer.writerow([m.name, m.site.name if m.site else ''])
-        
-    return Response(
-        output.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-disposition": "attachment; filename=helpdesk_modules.csv"}
-    )
+        data.append({'Name': m.name, 'Site ID': m.site_id or ''})
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False)
+    output.seek(0)
+    return send_file(output, download_name="helpdesk_modules.xlsx", as_attachment=True, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 @settings_bp.route('/helpdesk_module/import', methods=['POST'])
 @login_required
 def import_hd_modules():
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
+    import pandas as pd
     file = request.files.get('file')
-    if not file or not file.filename.endswith('.csv'):
-        flash('Please upload a valid CSV file.', 'error')
+    if not file or not file.filename.endswith(('.xlsx', '.xls')):
+        flash('Please upload a valid Excel file.', 'error')
         return redirect(url_for('settings.index') + '#hd-modules')
+    try:
+        df = pd.read_excel(file)
+        count = 0
+        for index, row in df.iterrows():
+            name = str(row.get('Name', '')).strip()
+            if name == 'nan' or not name: continue
+            site_id = str(row.get('Site ID', '')).strip()
+            site_id = int(float(site_id)) if site_id != 'nan' and site_id else None
+            existing = HelpdeskModule.query.filter_by(name=name, site_id=site_id).first()
+            if not existing:
+                new_mod = HelpdeskModule(name=name, site_id=site_id)
+                db.session.add(new_mod)
+                count += 1
+        db.session.commit()
+        flash(f'Imported {count} helpdesk modules.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error importing Excel: {str(e)}', 'error')
+    return redirect(url_for('settings.index') + '#hd-modules')
         
     try:
         decoded = file.stream.read().decode("utf-8-sig")
@@ -1492,30 +1524,69 @@ def import_hd_modules():
         
     return redirect(url_for('settings.index') + '#hd-modules')
 
+@settings_bp.route('/helpdesk_location/template', methods=['GET'])
+@login_required
+def download_hd_location_template():
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
+    import pandas as pd
+    import io
+    from flask import send_file
+    df = pd.DataFrame(columns=['Name', 'Site ID'])
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False)
+    output.seek(0)
+    return send_file(output, download_name="helpdesk_locations_template.xlsx", as_attachment=True, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
 @settings_bp.route('/helpdesk_location/export', methods=['GET'])
 @login_required
 def export_hd_locations():
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Location Name', 'Site Name'])
-    
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
+    import pandas as pd
+    import io
+    from flask import send_file
+    data = []
     locations = HelpdeskLocation.query.all()
-    for l in locations:
-        writer.writerow([l.name, l.site.name if l.site else ''])
-        
-    return Response(
-        output.getvalue(),
-        mimetype="text/csv",
-        headers={"Content-disposition": "attachment; filename=helpdesk_locations.csv"}
-    )
+    for m in locations:
+        data.append({'Name': m.name, 'Site ID': m.site_id or ''})
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False)
+    output.seek(0)
+    return send_file(output, download_name="helpdesk_locations.xlsx", as_attachment=True, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 @settings_bp.route('/helpdesk_location/import', methods=['POST'])
 @login_required
 def import_hd_locations():
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
+    import pandas as pd
     file = request.files.get('file')
-    if not file or not file.filename.endswith('.csv'):
-        flash('Please upload a valid CSV file.', 'error')
+    if not file or not file.filename.endswith(('.xlsx', '.xls')):
+        flash('Please upload a valid Excel file.', 'error')
         return redirect(url_for('settings.index') + '#hd-locations')
+    try:
+        df = pd.read_excel(file)
+        count = 0
+        for index, row in df.iterrows():
+            name = str(row.get('Name', '')).strip()
+            if name == 'nan' or not name: continue
+            site_id = str(row.get('Site ID', '')).strip()
+            site_id = int(float(site_id)) if site_id != 'nan' and site_id else None
+            existing = HelpdeskLocation.query.filter_by(name=name, site_id=site_id).first()
+            if not existing:
+                new_mod = HelpdeskLocation(name=name, site_id=site_id)
+                db.session.add(new_mod)
+                count += 1
+        db.session.commit()
+        flash(f'Imported {count} helpdesk locations.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error importing Excel: {str(e)}', 'error')
+    return redirect(url_for('settings.index') + '#hd-locations')
         
     try:
         decoded = file.stream.read().decode("utf-8-sig")

@@ -1291,8 +1291,8 @@
                                 <div class="mt-3 pt-3 border-top">
                                     <label class="form-label small fw-bold d-block text-muted">Bulk Actions</label>
                                     <div class="d-flex gap-2">
-                                        <a href="{{ url_for('settings.export_hd_modules') }}" class="btn btn-sm btn-outline-success flex-fill"><i class="bi bi-download"></i> Export CSV</a>
-                                        <button type="button" class="btn btn-sm btn-outline-info flex-fill" data-bs-toggle="modal" data-bs-target="#importHDModulesModal"><i class="bi bi-upload"></i> Import CSV</button>
+                                        <a href="{{ url_for('settings.export_hd_modules') }}" class="btn btn-sm btn-outline-success flex-fill"><i class="bi bi-download"></i> Export Excel</a>
+                                        <button type="button" class="btn btn-sm btn-outline-info flex-fill" data-bs-toggle="modal" data-bs-target="#importHDModulesModal"><i class="bi bi-upload"></i> Import Excel</button>
                                     </div>
                                 </div>
                             </div>
@@ -1364,8 +1364,8 @@
                                 <div class="mt-3 pt-3 border-top">
                                     <label class="form-label small fw-bold d-block text-muted">Bulk Actions</label>
                                     <div class="d-flex gap-2">
-                                        <a href="{{ url_for('settings.export_hd_locations') }}" class="btn btn-sm btn-outline-success flex-fill"><i class="bi bi-download"></i> Export CSV</a>
-                                        <button type="button" class="btn btn-sm btn-outline-info flex-fill" data-bs-toggle="modal" data-bs-target="#importHDLocationsModal"><i class="bi bi-upload"></i> Import CSV</button>
+                                        <a href="{{ url_for('settings.export_hd_locations') }}" class="btn btn-sm btn-outline-success flex-fill"><i class="bi bi-download"></i> Export Excel</a>
+                                        <button type="button" class="btn btn-sm btn-outline-info flex-fill" data-bs-toggle="modal" data-bs-target="#importHDLocationsModal"><i class="bi bi-upload"></i> Import Excel</button>
                                     </div>
                                 </div>
                             </div>
@@ -1656,8 +1656,20 @@
                         <i class="bi bi-info-circle me-1"></i> Use headers: <strong>Module Name</strong>, <strong>Site Name</strong>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Choose CSV File</label>
-                        <input type="file" name="file" class="form-control" accept=".csv" required>
+                        <label class="form-label">Choose Excel File</label>
+                        
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <p class="small text-muted mb-0">Upload Excel file (.xlsx) with columns: Name, Site ID</p>
+    <a href="{{ url_for('settings.download_hd_module_template') }}" class="btn btn-sm btn-outline-info"><i class="bi bi-file-earmark-excel"></i> Download Template</a>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <p class="small text-muted mb-0">Upload Excel file (.xlsx) with columns: Name, Site ID</p>
+    <a href="{{ url_for('settings.download_hd_location_template') }}" class="btn btn-sm btn-outline-info"><i class="bi bi-file-earmark-excel"></i> Download Template</a>
+</div>
+<input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
+
+
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1684,8 +1696,8 @@
                         <i class="bi bi-info-circle me-1"></i> Use headers: <strong>Location Name</strong>, <strong>Site Name</strong>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Choose CSV File</label>
-                        <input type="file" name="file" class="form-control" accept=".csv" required>
+                        <label class="form-label">Choose Excel File</label>
+                        <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1849,7 +1861,7 @@
               </div>
           </div>
           <div class="modal-footer">
-            <a href="#" id="exportSafeRangesBtn" class="btn btn-outline-info btn-sm me-auto"><i class="bi bi-file-earmark-excel"></i> Export CSV</a>
+            <a href="#" id="exportSafeRangesBtn" class="btn btn-outline-info btn-sm me-auto"><i class="bi bi-file-earmark-excel"></i> Export Excel</a>
             <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
             <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-save"></i> Save Ranges</button>
           </div>
