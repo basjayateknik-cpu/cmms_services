@@ -2293,6 +2293,7 @@ def delete_wo_checklist(id, chk_id):
     db.session.commit()
     flash('Checklist parameter deleted successfully.', 'success')
     return redirect(url_for('work_orders.edit', id=id) + '#checklist_panel')
+@work_orders_bp.route('/<int:id>/export_pptx', methods=['GET'])
 @login_required
 def export_pptx(id):
     wo = WorkOrder.query.get_or_404(id)
