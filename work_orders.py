@@ -2469,7 +2469,7 @@ def export_pptx(id):
     current_y += Cm(2.2)
     
     # 2. CHECKING REPORT
-    chk_params = wo.checklist_parameters
+    chk_params = list(wo.checklist_parameters)
     chk_rows = len(chk_params) + 2
     
     # If the table is too long, we might need a new slide. For simplicity, we just put it on the current slide.
@@ -2508,7 +2508,7 @@ def export_pptx(id):
         current_y = Cm(3.6)
         
     # 3. TASKLIST REPORT
-    procs = wo.procedures
+    procs = list(wo.procedures)
     proc_rows = len(procs) + 2
     
     proc_shape = s.shapes.add_table(proc_rows, 3, Cm(1), current_y, Cm(19), Cm(0.6 * proc_rows))
