@@ -403,6 +403,104 @@ def delete_project_code(id):
     flash('Project Code deleted successfully.', 'success')
     return redirect(url_for('settings.index') + '#project-codes')
 
+@settings_bp.route('/project_code/export', methods=['GET'])
+@login_required
+def export_project_codes():
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
+    
+    import pandas as pd
+    
+    project_codes = ProjectCode.query.all()
+    data = []
+    for p in project_codes:
+        data.append({
+            'Project Code': p.code,
+            'Description': p.description or ''
+        })
+        
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Project Codes')
+        
+    output.seek(0)
+    return Response(
+        output.read(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-disposition": "attachment; filename=project_codes.xlsx"}
+    )
+
+@settings_bp.route('/project_code/template', methods=['GET'])
+@login_required
+def download_project_code_template():
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
+        
+    import pandas as pd
+    
+    data = [{
+        'Project Code': 'PROJ-001',
+        'Description': 'Sample Project Description'
+    }]
+    
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Project Codes')
+        
+        worksheet = writer.sheets['Project Codes']
+        worksheet.set_column('A:B', 30)
+        
+    output.seek(0)
+    return Response(
+        output.read(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-disposition": "attachment; filename=project_codes_template.xlsx"}
+    )
+
+@settings_bp.route('/project_code/import', methods=['POST'])
+@login_required
+def import_project_codes():
+    if current_user.role != 'Admin':
+        return redirect(url_for('dashboard'))
+    
+    import pandas as pd
+    
+    file = request.files.get('file')
+    if not file or not file.filename.endswith('.xlsx'):
+        flash('Invalid file format. Please upload an Excel (.xlsx) file.', 'error')
+        return redirect(url_for('settings.index') + '#project-codes')
+        
+    try:
+        df = pd.read_excel(file)
+        df = df.fillna('')
+        
+        counter = 0
+        for index, row in df.iterrows():
+            code = str(row.get('Project Code', '')).strip()
+            description = str(row.get('Description', '')).strip()
+            
+            if not code:
+                continue
+                
+            existing = ProjectCode.query.filter_by(code=code).first()
+            if not existing:
+                new_proj = ProjectCode(code=code, description=description)
+                db.session.add(new_proj)
+                counter += 1
+            else:
+                if description and description != existing.description:
+                    existing.description = description
+                    counter += 1
+
+        db.session.commit()
+        flash(f'Project codes imported successfully. Processed {counter} records.', 'success')
+    except Exception as e:
+        flash(f'Error importing project codes: {str(e)}', 'error')
+        
+    return redirect(url_for('settings.index') + '#project-codes')
+
 
 @settings_bp.route('/team/add', methods=['POST'])
 @login_required
